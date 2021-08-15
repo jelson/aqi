@@ -22,7 +22,7 @@
 
 MAX_CACHE_SIZE = 15
 
-from logging import say
+from mylogging import say
 import argparse
 import datetime
 import json
@@ -72,7 +72,7 @@ def main():
     )
     args = parser.parse_args()
     if args.log:
-        logging.open_logfile(args.log)
+        mylogging.open_logfile(args.log)
     say(f"Starting; args: {args}")
 
     # open input file

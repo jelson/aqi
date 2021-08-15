@@ -5,7 +5,7 @@
 # columns; annotates each record with a sensor id; and computes AQI
 # from the raw PM2.5 value for each record.
 
-from logging import say
+from mylogging import say
 import aqi
 import database
 

@@ -4,7 +4,7 @@
 # postgres database from a list of dicts that map column name to a
 # value.
 
-from logging import say
+from mylogging import say
 import psycopg2
 import psycopg2.extras
 
