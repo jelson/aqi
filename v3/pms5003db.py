@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+# PMS5003-aware database layer; interfaces with the generic database
+# helper underneath, but knows the names of the database, table, and
+# columns; annotates each record with a sensor id; and computes AQI
+# from the raw PM2.5 value for each record.
+
 from logging import say
 import aqi
 import database
