@@ -17,7 +17,7 @@
 #
 # If we ever wanted the Arduino in the loop, but writing to a remote
 # database rather than a local one, this script could take an extra
-# argument and set db to an instance of dataclient.
+# argument and set db to an instance of httpclient.
 #
 
 MAX_CACHE_SIZE = 15
