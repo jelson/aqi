@@ -176,6 +176,7 @@ def main():
 
     db = httpclient.DataClient(args.url)
 
+    # start reading!
     uart = serial.Serial(SENSOR_PATH, baudrate=9600, timeout=2)
     pm25 = PM25_UART(uart)
     cache = []
