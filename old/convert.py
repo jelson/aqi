@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# One-time use script to convert previous log file format into JSON
 import json
 
 out = {}
