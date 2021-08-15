@@ -31,4 +31,3 @@ class DatabaseBatcher:
 
         self.db.commit()
         say(f"{len(recordlist)} records committed")
-

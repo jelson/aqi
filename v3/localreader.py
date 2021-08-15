@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-MAX_CACHE_SIZE = 3
+MAX_CACHE_SIZE = 15
 
 from logging import say
 import argparse
@@ -18,11 +18,11 @@ def read_forever(db, sensorid, infile):
         line = line.rstrip()
         if not line:
             continue
-        
+
         data = json.loads(line)
 
         # rename legacy fields
-        
+
         data['time'] = datetime.datetime.now()
         cache.append(data)
 
