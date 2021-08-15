@@ -167,7 +167,7 @@ def main():
     )
     args = parser.parse_args()
     say(f"Starting; args: {args}")
-    
+
     # validate sensor id
     sensorid = int(args.sensor_id)
     if sensorid <= 0:
@@ -187,6 +187,8 @@ def main():
             'pm2.5': data['pm25_standard'],
             'pm10.0': data['pm100_standard'],
         })
+
+        # post data to server if needed
         if len(cache) >= MAX_CACHE_LEN:
             try:
                 db.insert_batch(sensorid, cache)
