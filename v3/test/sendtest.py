@@ -23,7 +23,8 @@ def test(url, sensor_id, num_records):
         })
         t = t + datetime.timedelta(seconds=0.1)
 
-    client.insert_batch(sensor_id, records)
+    retval = client.insert_batch(sensor_id, records)
+    print(f"Retval: {retval}")
 
 def main():
     parser = argparse.ArgumentParser(sys.argv[0])

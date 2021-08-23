@@ -21,4 +21,14 @@ class DataClient:
             'sensorid': sensorid,
             'sensordata': recordlist,
         }
-        requests.post(self.url, json=payload)
+        try:
+            retval = requests.post(self.url, json=payload)
+        except Exception as e:
+            say(f"failed to http post: {e}")
+            return False
+
+        if retval.status_code == 200:
+            return True
+        else:
+            say(f"failed to http post: got http status {retval.status_code}")
+            return False
