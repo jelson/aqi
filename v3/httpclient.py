@@ -12,6 +12,7 @@ class DataClient:
     def __init__(self, url, password):
         self.url = url
         self.password = password.encode('utf-8')
+        self.session = requests.Session()
 
     def insert_batch(self, sensorid, recordlist):
         say("sensor id {}: posting {} records from {} to {}".format(
@@ -34,7 +35,7 @@ class DataClient:
         payload['auth'] = binascii.hexlify(auth.digest())
 
         try:
-            retval = requests.post(self.url, json=payload)
+            retval = self.session.post(self.url, json=payload)
         except Exception as e:
             say(f"failed to http post: {e}")
             return False

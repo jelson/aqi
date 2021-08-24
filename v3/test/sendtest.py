@@ -22,7 +22,7 @@ def test(client, args):
         })
         t = t + datetime.timedelta(seconds=0.1)
 
-    retval = client.insert_batch(sensor_id, records)
+    retval = client.insert_batch(args.sensor_id, records)
     print(f"Retval: {retval}")
 
 def main():
