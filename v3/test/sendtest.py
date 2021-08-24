@@ -10,8 +10,8 @@ sys.path.append("..")
 import httpclient
 
 
-def test(url, sensor_id, num_records):
-    client = httpclient.DataClient(url)
+def test(url, sensor_id, num_records, password):
+    client = httpclient.DataClient(url, password)
     t = datetime.datetime.now()
     records = []
     for i in range(num_records):
@@ -55,7 +55,13 @@ def main():
         action='store',
         required=True,
     )
+    parser.add_argument(
+        '--password', '-p',
+        help="Password for server",
+        action='store',
+        required=True,
+    )
     args = parser.parse_args(sys.argv[1:])
-    test(args.url, args.sensor_id, args.num_records)
+    test(args.url, args.sensor_id, args.num_records, args.password)
 
 main()
