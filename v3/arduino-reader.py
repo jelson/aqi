@@ -20,16 +20,15 @@
 # argument and set db to an instance of httpclient.
 #
 
-MAX_CACHE_SIZE = 15
-
 from mylogging import say
 import argparse
+import datacache
 import datetime
+import httpclient
 import json
-import pms5003db
 
-def read_forever(db, sensorid, infile):
-    cache = []
+def read_forever(infile, cache):
+    say("Starting to read from sensor")
     while True:
         line = infile.readline()
         if not line:
@@ -46,11 +45,6 @@ def read_forever(db, sensorid, infile):
         # append to cache
         cache.append(data)
 
-        # if cache is full, dump to database
-        if len(cache) >= MAX_CACHE_SIZE:
-            db.insert_batch(sensorid, cache)
-            cache.clear()
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -60,17 +54,14 @@ def main():
         required='true',
     )
     parser.add_argument(
-        "-s", "--sensor-id",
-        help="Numeric sensor ID to write to database",
-        action='store',
-        required='true',
-    )
-    parser.add_argument(
         "-l", "--log",
         help='Filename to log to',
         action='store'
     )
+    httpclient.build_parser(parser)
     args = parser.parse_args()
+
+    # set logging output
     if args.log:
         mylogging.open_logfile(args.log)
     say(f"Starting; args: {args}")
@@ -79,17 +70,11 @@ def main():
     infile = open(args.device, "r")
     say(f"Opened input file {args.device}")
 
-    # validate sensor id
-    sensorid = int(args.sensor_id)
-    if sensorid <= 0:
-        say("Invalid sensor ID, must be >0")
-        sys.exit(1)
-
-    # open database
-    db = pms5003db.PMS5003Database()
+    # create a cache
+    cache = datacache.DataCache(args)
 
     # read forever
-    read_forever(db, sensorid, infile)
+    read_forever(infile, cache)
 
     # should hopefully never be reached
     say("Read failed! Exiting!")

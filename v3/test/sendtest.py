@@ -2,12 +2,15 @@
 
 # Tests posting to the net receiver with synthetic data
 
+# python standard libraries
 import argparse
 import datetime
 import sys
 
+# project libraries
 sys.path.append("..")
 import httpclient
+import util
 
 
 def test(client, args):
@@ -22,54 +25,28 @@ def test(client, args):
         })
         t = t + datetime.timedelta(seconds=0.1)
 
-    retval = client.insert_batch(args.sensor_id, records)
+    retval = client.insert_batch(records)
     print(f"Retval: {retval}")
 
 def main():
     parser = argparse.ArgumentParser(sys.argv[0])
-    parser.add_argument(
-        '--url', '-u',
-        help="URL to post to",
-        action='store',
-        required=True,
-    )
-
-    def gtzero(arg):
-        arg = int(arg)
-        if arg <= 0:
-            raise argparse.ArgumentTypeError("argument must be > 0")
-        return arg
-
-    parser.add_argument(
-        '--sensor-id', '-s',
-        help="Sensor ID",
-        type=gtzero,
-        action='store',
-        required=True,
-    )
+    httpclient.build_parser(parser)
     parser.add_argument(
         '--num-records', '-n',
         help="Number of records to insert",
-        type=gtzero,
-        action='store',
-        required=True,
-    )
-    parser.add_argument(
-        '--password', '-p',
-        help="Password for server",
+        type=util.gtzero,
         action='store',
         required=True,
     )
     parser.add_argument(
         '--requests', '-r',
         help='Number of requests to make',
-        type=gtzero,
+        type=util.gtzero,
         action='store',
         default='1',
     )
     args = parser.parse_args(sys.argv[1:])
-
-    client = httpclient.DataClient(args.url, args.password)
+    client = httpclient.DataClient(args)
     for i in range(args.requests):
         test(client, args)
 

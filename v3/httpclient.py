@@ -7,16 +7,40 @@ import hashlib
 import random
 import requests
 import string
+import util
+
+# Build an argparse parser for standard arguments for clients: sensor id, url and password
+def build_parser(parser):
+    parser.add_argument(
+        '--sensor-id', '-s',
+        help="Sensor ID",
+        type=util.gtzero,
+        action='store',
+        required=True,
+    )
+    parser.add_argument(
+        '--url', '-u',
+        help="URL to post to",
+        action='store',
+        required=True,
+    )
+    parser.add_argument(
+        '--password', '-p',
+        help="Password for server",
+        action='store',
+        required=True,
+    )
 
 class DataClient:
-    def __init__(self, url, password):
-        self.url = url
-        self.password = password.encode('utf-8')
+    def __init__(self, args):
+        self.sensorid = args.sensor_id
+        self.url = args.url
+        self.password = args.password.encode('utf-8')
         self.session = requests.Session()
 
-    def insert_batch(self, sensorid, recordlist):
+    def insert_batch(self, recordlist):
         say("sensor id {}: posting {} records from {} to {}".format(
-            sensorid, len(recordlist),
+            self.sensorid, len(recordlist),
             recordlist[0]['time'], recordlist[-1]['time']))
 
         for rec in recordlist:
@@ -24,7 +48,7 @@ class DataClient:
                 rec['time'] = rec['time'].timestamp()
 
         payload = {
-            'sensorid': sensorid,
+            'sensorid': self.sensorid,
             'sensordata': recordlist,
         }
 

@@ -54,6 +54,7 @@ SENSOR_PATH = "/dev/ttyS0"
 # imports
 from mylogging import say
 import argparse
+import datacache
 import collections
 import datetime
 import httpclient
@@ -152,12 +153,19 @@ class PM25_UART(PM25):
             self._buffer[i + 1] = remain[i]
 
 def main():
+    def gtzero(arg):
+        arg = int(arg)
+        if arg <= 0:
+            raise argparse.ArgumentTypeError("argument must be > 0")
+        return arg
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-s", "--sensor-id",
         help="Numeric sensor ID to write to database",
         action='store',
-        required='true',
+        type=gtzero,
+        required=True,
     )
     parser.add_argument(
         "-u", "--url",
@@ -174,18 +182,12 @@ def main():
     args = parser.parse_args()
     say(f"Starting; args: {args}")
 
-    # validate sensor id
-    sensorid = int(args.sensor_id)
-    if sensorid <= 0:
-        say("Invalid sensor ID, must be >0")
-        sys.exit(1)
-
-    db = httpclient.DataClient(args.url, args.password)
+    # set up the cache and the thread that services it
+    cache = datacache.DataCache(args)
 
     # start reading!
     uart = serial.Serial(SENSOR_PATH, baudrate=9600, timeout=2)
     pm25 = PM25_UART(uart)
-    cache = []
     while True:
         data = pm25.read()
         cache.append({
@@ -194,13 +196,5 @@ def main():
             'pm2.5': data['pm25_standard'],
             'pm10.0': data['pm100_standard'],
         })
-
-        # post data to server if needed
-        if len(cache) >= MAX_CACHE_LEN:
-            try:
-                db.insert_batch(sensorid, cache)
-                cache.clear()
-            except Exception as e:
-                say(f"Could not post sensor data: {e}")
 
 main()
