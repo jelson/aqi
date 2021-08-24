@@ -10,11 +10,10 @@ sys.path.append("..")
 import httpclient
 
 
-def test(url, sensor_id, num_records, password):
-    client = httpclient.DataClient(url, password)
+def test(client, args):
     t = datetime.datetime.now()
     records = []
-    for i in range(num_records):
+    for i in range(args.num_records):
         records.append({
             'time': t,
             'pm1.0': i,
@@ -61,7 +60,17 @@ def main():
         action='store',
         required=True,
     )
+    parser.add_argument(
+        '--requests', '-r',
+        help='Number of requests to make',
+        type=gtzero,
+        action='store',
+        default='1',
+    )
     args = parser.parse_args(sys.argv[1:])
-    test(args.url, args.sensor_id, args.num_records, args.password)
+
+    client = httpclient.DataClient(args.url, args.password)
+    for i in range(args.requests):
+        test(client, args)
 
 main()
