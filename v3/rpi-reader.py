@@ -163,7 +163,13 @@ def main():
         "-u", "--url",
         help="URL to post to",
         action='store',
-        required='true',
+        required=True,
+    )
+    parser.add_argument(
+        "-p", "--password",
+        help="Password for server",
+        action='store',
+        required=True,
     )
     args = parser.parse_args()
     say(f"Starting; args: {args}")
@@ -174,7 +180,7 @@ def main():
         say("Invalid sensor ID, must be >0")
         sys.exit(1)
 
-    db = httpclient.DataClient(args.url)
+    db = httpclient.DataClient(args.url, args.password)
 
     # start reading!
     uart = serial.Serial(SENSOR_PATH, baudrate=9600, timeout=2)
