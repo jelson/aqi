@@ -13,7 +13,7 @@ PORT = 15000
 
 class SensorDataHandler():
     def __init__(self, config):
-        self.db = pms5003db.PMS5003Database()
+        self.db = None
         self.password = config['password'].encode('utf-8')
 
     @cherrypy.expose
@@ -30,12 +30,22 @@ class SensorDataHandler():
             cherrypy.response.status = 403
             return
 
-        # insert sensor data
+        # prepare sensor data
         sensorid = msg['sensorid']
         sensordata = msg['sensordata']
         for rec in sensordata:
             rec['time'] = datetime.datetime.fromtimestamp(rec['time'])
-        self.db.insert_batch(sensorid, sensordata)
+
+        # create database if none exists
+        if not self.db:
+            self.db = pms5003db.PMS5003Database()
+
+        try:
+            self.db.insert_batch(sensorid, sensordata)
+        except Exception as e:
+            self.db = None
+            print(e)
+            cherrypy.response.status = 501
 
 def main():
     parser = argparse.ArgumentParser()
