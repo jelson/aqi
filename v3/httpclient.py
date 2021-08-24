@@ -1,12 +1,17 @@
 # HTTP client that takes sensor data and POSTs it to a waiting listener
 
 from mylogging import say
+import binascii
 import datetime
+import hashlib
+import random
 import requests
+import string
 
 class DataClient:
-    def __init__(self, url):
+    def __init__(self, url, password):
         self.url = url
+        self.password = password.encode('utf-8')
 
     def insert_batch(self, sensorid, recordlist):
         say("sensor id {}: posting {} records from {} to {}".format(
@@ -21,6 +26,13 @@ class DataClient:
             'sensorid': sensorid,
             'sensordata': recordlist,
         }
+
+        # add authenticator
+        payload['salt'] = ''.join(random.choices(string.ascii_uppercase, k=20))
+        auth = hashlib.sha256(payload['salt'].encode('utf-8'))
+        auth.update(self.password)
+        payload['auth'] = binascii.hexlify(auth.digest())
+
         try:
             retval = requests.post(self.url, json=payload)
         except Exception as e:
