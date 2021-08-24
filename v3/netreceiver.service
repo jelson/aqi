@@ -1,0 +1,13 @@
+[Unit]
+Description=AQI data receiver
+StartLimitIntervalSec=0
+
+[Service]
+Restart=always
+RestartSec=30
+ExecStart=/home/jelson/aqi/v3/netreceiver.py --config /home/jelson/aqi/receiver-config.json
+User=jelson
+
+[Install]
+WantedBy=multi-user.target
+Alias=aqi-server.service
