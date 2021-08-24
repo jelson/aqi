@@ -31,13 +31,23 @@ def main():
         help='Filename to log to',
         action='store'
     )
+    parser.add_argument(
+        "-c", "--config-file",
+        help='Path to config file',
+        action='store',
+        required=True,
+    )
     args = parser.parse_args()
     if args.log:
         logging.open_logfile(args.log)
+    config = json.load(open(args.config_file))
     server = SensorDataHandler()
     cherrypy.config.update({
         'server.socket_host': '::',
         'server.socket_port': PORT,
+        'server.ssl_certificate': config['certpath'],
+        'server.ssl_private_key': config['keypath'],
+        'server.ssl_certificate_chain': config['chainpath'],
     })
     cherrypy.quickstart(SensorDataHandler())
 
