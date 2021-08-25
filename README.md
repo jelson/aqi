@@ -59,8 +59,8 @@ The PMS5003 parsing code is based on
 
   If you'd rather not use HTTPS, leave the certificate configuration lines out
   of the receiver configuration file. The server will start as HTTP instead of
-  HTTPS. If you do this, make sure you use http:// URLs instead of https:// for
-  the client. tools
+  HTTPS. If you do this, make sure you use http:// URLs instead of https:// with
+  the client tools.
 
 * Test the receiver: Run the unit test with a command like
 
