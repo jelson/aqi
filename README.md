@@ -44,7 +44,7 @@ The PMS5003 parsing code is based on
 ## Software
 
 * Install Postgres on your server. Use a SQL script similar to [this
-  example](https://github.com/jelson/aqi/blob/jelson/docs/v3/create-table.sql)
+  example](https://github.com/jelson/aqi/blob/main/v3/create-table.sql)
   to create a database and table.
 
 * Install the receiver service's prereqs on your server: python modules `aqi`
