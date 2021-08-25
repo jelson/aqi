@@ -48,19 +48,19 @@ Works with most (any?) Plantower UART PM2.5 sensor.
 """
 
 # constants
-MAX_CACHE_LEN = 15
 SENSOR_PATH = "/dev/ttyS0"
 
 # imports
 from mylogging import say
 import argparse
-import datacache
 import collections
+import datacache
 import datetime
 import httpclient
 import serial
 import struct
 import time
+import util
 
 class PM25:
     """Super-class for generic PM2.5 sensors. Subclasses must implement
@@ -153,32 +153,8 @@ class PM25_UART(PM25):
             self._buffer[i + 1] = remain[i]
 
 def main():
-    def gtzero(arg):
-        arg = int(arg)
-        if arg <= 0:
-            raise argparse.ArgumentTypeError("argument must be > 0")
-        return arg
-
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-s", "--sensor-id",
-        help="Numeric sensor ID to write to database",
-        action='store',
-        type=gtzero,
-        required=True,
-    )
-    parser.add_argument(
-        "-u", "--url",
-        help="URL to post to",
-        action='store',
-        required=True,
-    )
-    parser.add_argument(
-        "-p", "--password",
-        help="Password for server",
-        action='store',
-        required=True,
-    )
+    httpclient.build_parser(parser)
     args = parser.parse_args()
     say(f"Starting; args: {args}")
 
