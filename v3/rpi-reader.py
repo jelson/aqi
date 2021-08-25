@@ -162,6 +162,7 @@ def main():
     cache = datacache.DataCache(args)
 
     # start reading!
+    say(f"Opening {SENSOR_PATH}")
     uart = serial.Serial(SENSOR_PATH, baudrate=9600, timeout=2)
     pm25 = PM25_UART(uart)
     while True:
