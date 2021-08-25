@@ -57,9 +57,10 @@ The PMS5003 parsing code is based on
   a password for your service and specify the paths to your SSL certificate, key
   and cert chain. Note the default port is 15000.
 
-  If you'd rather not use HTTPS, you can comment out the SSL configuration lines
-  in netreceiver.py. If you do this, make sure you use http:// URLs instead of
-  https:// for the client. tools
+  If you'd rather not use HTTPS, leave the certificate configuration lines out
+  of the receiver configuration file. The server will start as HTTP instead of
+  HTTPS. If you do this, make sure you use http:// URLs instead of https:// for
+  the client. tools
 
 * Test the receiver: Run the unit test with a command like
 

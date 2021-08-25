@@ -67,10 +67,16 @@ def main():
     cherrypy.config.update({
         'server.socket_host': '::',
         'server.socket_port': PORT,
-        'server.ssl_certificate': config['certpath'],
-        'server.ssl_private_key': config['keypath'],
-        'server.ssl_certificate_chain': config['chainpath'],
     })
+
+    # enable SSL if configured
+    if 'certpath' in config:
+        cherrypy.config.update({
+            'server.ssl_certificate': config['certpath'],
+            'server.ssl_private_key': config['keypath'],
+            'server.ssl_certificate_chain': config['chainpath'],
+        })
+
     cherrypy.quickstart(SensorDataHandler(config))
 
 main()
