@@ -1,0 +1,6 @@
+{
+    "password": "pick a password",
+    "certpath": "/etc/letsencrypt/live/example.com/cert.pem",
+    "chainpath": "/etc/letsencrypt/live/example.com/fullchain.pem",
+    "keypath": "/etc/letsencrypt/live/example.com/privkey.pem"
+}
