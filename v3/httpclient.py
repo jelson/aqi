@@ -56,7 +56,7 @@ class DataClient:
         payload['salt'] = ''.join(random.choices(string.ascii_uppercase, k=20))
         auth = hashlib.sha256(payload['salt'].encode('utf-8'))
         auth.update(self.password)
-        payload['auth'] = binascii.hexlify(auth.digest())
+        payload['auth'] = auth.digest().hex()
 
         try:
             retval = self.session.post(self.url, json=payload)
