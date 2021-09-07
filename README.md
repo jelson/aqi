@@ -84,9 +84,12 @@ The PMS5003 parsing code is based on
    * Use `raspi-config` to configure the serial port to be usable for an
      external peripheral rather than a console
 
-   * Run `v3/rpi-reader.py --url https://your-server:15000/data/ -s 1 -p 'password-you-picked'`
-     The `-s 1` argument is the sensor ID number. If you have more than one sensor,
-     give each a unique sensor ID.
+   * Run `v3/rpi-reader.py --url https://your-server:15000/data/ -s 1 -p
+     'password-you-picked'` The `-s 1` argument is the sensor ID number. If you
+     have more than one sensor, give each a unique sensor ID.
+     
+   * Check `journalctl -f` to look for log messages. You should see `rpi-reader`
+     reporting that it is sending data to the server every 15 seconds.
 
 * Optional: install Grafana (or similar tool) to visualize the data from your
   database.
