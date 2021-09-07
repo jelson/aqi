@@ -50,19 +50,23 @@ The PMS5003 parsing code is based on
 * Install the receiver service's prereqs on your server: python modules `aqi`
   and `cherrypy`
 
-* Start the receiver service on your server: on boot, automatically start
-  `v3/netreceiver.py --config /path/to/config-file`. An example config file can
-  be found
-  [here](https://github.com/jelson/aqi/blob/main/v3/netreceiver-config-example.json). Choose
-  a password for your service and specify the paths to your SSL certificate, key
-  and cert chain. Note the default port is 15000.
+* Create a configuration file for the receiver service specifying a password of
+  your choice. If you want to use HTTPS (TLS), also specify the path to your
+  HTTPS certficate, key, and cert chain.  An example config file can be found
+  [here](https://github.com/jelson/aqi/blob/main/v3/netreceiver-config-example.json).
 
   If you'd rather not use HTTPS, leave the certificate configuration lines out
   of the receiver configuration file. The server will start as HTTP instead of
   HTTPS. If you do this, make sure you use http:// URLs instead of https:// with
   the client tools.
 
-* Test the receiver: Run the unit test with a command like
+* Run the receiver service using a command line like `v3/netreceiver.py --config
+  /path/to/config-file`. You may wish to use `systemd` to have the service start
+  automatically; an example systemd config file is
+  [here](https://github.com/jelson/aqi/blob/main/v3/netreceiver.service).
+
+* Test the receiver. Note that by default it runs on port 15000. Run the unit
+  test with a command like
 
     `v3/test/sendtest.py --url https://your-server:15000/data/ -s 1000 -n 10 -p 'password-you-picked'`
 
