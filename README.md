@@ -87,7 +87,11 @@ The PMS5003 parsing code is based on
    * Run `v3/rpi-reader.py --url https://your-server:15000/data/ -s 1 -p
      'password-you-picked'` The `-s 1` argument is the sensor ID number. If you
      have more than one sensor, give each a unique sensor ID.
-     
+
+   * If it works, arrange to have the Pi start rpi-reader.py automatically on
+     each boot by adding it to systemd; an example config file is
+  [here](https://github.com/jelson/aqi/blob/main/v3/rpi-reader.service).
+
    * Check `journalctl -f` to look for log messages. You should see `rpi-reader`
      reporting that it is sending data to the server every 15 seconds.
 
