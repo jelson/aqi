@@ -20,6 +20,7 @@ create table particulatev3 (
    "aqi2.5" integer
 );
 
+create index time_idx on particulatev3(time);
 grant all on particulatev3 to jelson;
 create user grafana password 'i-love-data';
 grant select on all tables in schema public to grafana;
