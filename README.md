@@ -28,14 +28,15 @@ The PMS5003 parsing code is based on
   [BangGood](https://usa.banggood.com/PMS5003-PM2_5-Air-Particle-Dust-Sensor-Laser-Digital-Output-Module-High-Precision-Air-Haze-Detection-Smart-Home-Device-p-1553818.html),
   [AliExpress](https://www.aliexpress.com/item/1005001793669306.html), [eBay](https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2047675.m570.l1313&_nkw=pms5003&_sacat=0)...
 
-* Buy a Raspberry Pi Zero W (the WiFi variant) without headers
+* Buy a [Raspberry Pi Zero W](https://www.raspberrypi.org/products/raspberry-pi-zero-w/) (the WiFi variant) without headers
 
-* Solder 3 wires from the PMS5003 to the Raspberry Pi:
-   * Sensor Pin 1 (VCC) to Pi 5V
+* Solder 3 wires from the PMS5003 to the Raspberry Pi. For reference, see the
+  diagrams of the [sensor pinout](https://github.com/jelson/aqi/blob/main/docs/pms5003_pinout.png) and [Pi pinout](https://pinout.xyz/)
+   * Sensor Pin 1 (VCC) to Pi Pin 4 (5V Power)
 
-   * Sensor Pin 2 (GND) to Pi GND
+   * Sensor Pin 2 (GND) to Pi Pin 6 (GND)
 
-   * Sensor Pin 5 (TXD) to Pi serial port RX
+   * Sensor Pin 5 (TXD) to Pi Pin 10 (Serial port RX)
 
 * Optional: 3D print the [case I designed](https://www.thingiverse.com/thing:4940995).
   Attach the Pi to the case's integrated standoffs using 4xM2.5
