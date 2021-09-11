@@ -82,18 +82,23 @@ The PMS5003 parsing code is based on
 
 * Configure each of your RPi sensors:
 
-   * Install Raspian and clone this repo onto it
+   * Install the [Raspberry Pi OS](https://www.raspberrypi.org/software/),
+     configure WiFi, enable ssh
 
-   * Use `raspi-config` to configure the serial port to be usable for an
-     external peripheral rather than a console
+   * Boot the Pi into your new image, connect to it via ssh (or the console).
+     Run `raspi-config` to configure the serial port to be usable for an
+     external peripheral rather than a console.
 
-   * Run `v3/rpi-reader.py --url https://your-server:15000/data/ -s 1 -p
-     'password-you-picked'` The `-s 1` argument is the sensor ID number. If you
-     have more than one sensor, give each a unique sensor ID.
+   * Use apt-get to install git and Python3. Use `git clone` to clone this
+     repository into the `pi` user's home directory.
+
+   * Do a test run: run `v3/rpi-reader.py --url https://your-server:15000/data/
+     -s 1 -p 'password-you-picked'` The `-s 1` argument is the sensor ID
+     number. If you have more than one sensor, give each a unique sensor ID.
 
    * If it works, arrange to have the Pi start rpi-reader.py automatically on
      each boot by adding it to systemd; an example config file is
-  [here](https://github.com/jelson/aqi/blob/main/v3/rpi-reader.service).
+     [here](https://github.com/jelson/aqi/blob/main/v3/rpi-reader.service).
 
    * Check `journalctl -f` to look for log messages. You should see `rpi-reader`
      reporting that it is sending data to the server every 15 seconds.
