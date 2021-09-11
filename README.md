@@ -43,39 +43,41 @@ The PMS5003 parsing code is based on
 
 ## Software
 
-* Install Postgres on your server. Use a SQL script similar to [this
-  example](https://github.com/jelson/aqi/blob/main/v3/create-table.sql)
-  to create a database and table.
+* Configure the server that receives the data:
 
-* Install the receiver service's prereqs on your server: python modules `aqi`
-  and `cherrypy`
+    * Install Postgres on your server. Use a SQL script similar to [this
+      example](https://github.com/jelson/aqi/blob/main/v3/create-table.sql)
+      to create a database and table.
 
-* Create a configuration file for the receiver service specifying a password of
-  your choice. If you want to use HTTPS (TLS), also specify the path to your
-  HTTPS certficate, key, and cert chain.  An example config file can be found
-  [here](https://github.com/jelson/aqi/blob/main/v3/netreceiver-config-example.json).
+    * Install the receiver service's prereqs on your server: python modules `aqi`
+      and `cherrypy`
 
-  If you'd rather not use HTTPS, leave the certificate configuration lines out
-  of the receiver configuration file. The server will start as HTTP instead of
-  HTTPS. If you do this, make sure you use http:// URLs instead of https:// with
-  the client tools.
+    * Create a configuration file for the receiver service specifying a password of
+      your choice. If you want to use HTTPS (TLS), also specify the path to your
+      HTTPS certficate, key, and cert chain.  An example config file can be found
+      [here](https://github.com/jelson/aqi/blob/main/v3/netreceiver-config-example.json).
 
-* Run the receiver service using a command line like `v3/netreceiver.py --config
-  /path/to/config-file`. You may wish to use `systemd` to have the service start
-  automatically; an example systemd config file is
-  [here](https://github.com/jelson/aqi/blob/main/v3/netreceiver.service).
+      If you'd rather not use HTTPS, leave the certificate configuration lines out
+      of the receiver configuration file. The server will start as HTTP instead of
+      HTTPS. If you do this, make sure you use http:// URLs instead of https:// with
+      the client tools.
 
-* Test the receiver. Note that by default it runs on port 15000. Run the unit
-  test with a command like
+    * Run the receiver service using a command line like `v3/netreceiver.py --config
+      /path/to/config-file`. You may wish to use `systemd` to have the service start
+      automatically; an example systemd config file is
+      [here](https://github.com/jelson/aqi/blob/main/v3/netreceiver.service).
 
-    `v3/test/sendtest.py --url https://your-server:15000/data/ -s 1000 -n 10 -p 'password-you-picked'`
+    * Test the receiver. Note that by default it runs on port 15000. Run the unit
+      test with a command like
 
-   The return value should be `True`, indicating success. Check the database
-   table and ensure it has been populated with 10 rows of data (or whatever
-   value you passed to `-n`) tagged with sensor ID 1000 (or whatever value you
-   passed to `-s`). A 403 result indicates there was a mismatch between the
-   password you passed to sendtest.py and the one in the receiver's
-   configuration file.
+        `v3/test/sendtest.py --url https://your-server:15000/data/ -s 1000 -n 10 -p 'password-you-picked'`
+
+       The return value should be `True`, indicating success. Check the database
+       table and ensure it has been populated with 10 rows of data (or whatever
+       value you passed to `-n`) tagged with sensor ID 1000 (or whatever value you
+       passed to `-s`). A 403 result indicates there was a mismatch between the
+       password you passed to sendtest.py and the one in the receiver's
+       configuration file.
 
 * Configure each of your RPi sensors:
 
