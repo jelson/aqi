@@ -89,8 +89,8 @@ The PMS5003 parsing code is based on
      Run `raspi-config` to configure the serial port to be usable for an
      external peripheral rather than a console.
 
-   * Use apt-get to install git and Python3. Use `git clone` to clone this
-     repository into the `pi` user's home directory.
+   * Use `apt-get` to install `git`, `python3` and `python3-serial` . Use `git
+     clone` to clone this repository into the `pi` user's home directory.
 
    * Do a test run: run `v3/rpi-reader.py --url https://your-server:15000/data/
      -s 1 -p 'password-you-picked'` The `-s 1` argument is the sensor ID
