@@ -31,7 +31,7 @@ The PMS5003 parsing code is based on
 * Buy a [Raspberry Pi Zero W](https://www.raspberrypi.org/products/raspberry-pi-zero-w/) (the WiFi variant) without headers
 
 * Solder 3 wires from the PMS5003 to the Raspberry Pi. For reference, see the
-  diagrams of the [sensor pinout](https://github.com/jelson/aqi/blob/main/docs/pms5003_pinout.png) and [Pi pinout](https://pinout.xyz/)
+  diagrams of the [sensor pinout](https://github.com/jelson/aqi/blob/main/docs/pms5003_pinout.png) and [Pi pinout](https://pinout.xyz/).
    * Sensor Pin 1 (VCC) to Pi Pin 4 (5V Power)
 
    * Sensor Pin 2 (GND) to Pi Pin 6 (GND)
