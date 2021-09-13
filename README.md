@@ -106,7 +106,7 @@ The PMS5003 parsing code is based on
 
      * `systemctl daemon-reload`
 
-     * `systemctl enable rpi-reader.service`
+     * `systemctl start rpi-reader.service`
 
    * Check `journalctl -f` to look for log messages. You should see `rpi-reader`
      reporting that it is sending data to your server every 15 seconds.
