@@ -70,9 +70,9 @@ The PMS5003 parsing code is based on
 
     * Test the receiver. Note that by default it runs on port 15000. Run the unit
       test with a command like
-
-        `v3/test/sendtest.py --url https://your-server:15000/data/ -s 1000 -n 10 -p 'password-you-picked'`
-
+       ```
+       aqi/v3/sendtest.py --url https://your-server:15000/data/ -s 1000 -n 10 -p 'password-you-picked'
+       ```
        The return value should be `True`, indicating success. Check the database
        table and ensure it has been populated with 10 rows of data (or whatever
        value you passed to `-n`) tagged with sensor ID 1000 (or whatever value you
@@ -92,9 +92,15 @@ The PMS5003 parsing code is based on
    * Use `apt-get` to install `git`, `python3` and `python3-serial` . Use `git
      clone` to clone this repository into the `pi` user's home directory.
 
-   * Do a test run: run `/home/pi/aqi/v3/rpi-reader.py --url https://your-server:15000/data/
-     -s 1 -p 'password-you-picked'` The `-s 1` argument is the sensor ID
-     number. If you have more than one sensor, give each a unique value.
+   * Try running the sensor reader:
+       ```
+       /home/pi/aqi/v3/rpi-reader.py -v --url https://your-server:15000/data/ -s 1 -p 'password-you-picked'
+       ```
+     The `-v` (verbose) argument tells the client to print sensor data as it
+     arrives from the serial port; you should see a record about once every
+     second. After 15 seconds it should try to push data to your server. `-s 1`
+     means Sensor 1; if you have more than one sensor, give each a unique
+     number.
 
    * If it works, arrange to have the Pi start rpi-reader.py automatically on
      each boot by adding it to systemd; an example config file is
