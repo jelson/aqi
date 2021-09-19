@@ -1,14 +1,16 @@
 # Caching class that accepts records without blocking, and periodically flushes
 # the cache to the downstream data sink.
 
+from mylogging import say
 import httpclient
 import threading
 import time
 import util
 
-class DataCache(threading.Thread):         
+class DataCache(threading.Thread):
     def __init__(self, args):
         threading.Thread.__init__(self)
+        self.args = args
         self.daemon = True
         self.cache = []
         self.client = httpclient.DataClient(args)
@@ -18,6 +20,8 @@ class DataCache(threading.Thread):
     def append(self, record):
         with self.lock:
             self.cache.append(record)
+        if self.args.verbose:
+            say(f"got record: {record}")
 
     def run(self):
         to_xmit = []
@@ -40,4 +44,3 @@ class DataCache(threading.Thread):
 
             # Wait until it's time to transmit again
             time.sleep(15)
-

@@ -30,6 +30,12 @@ def build_parser(parser):
         action='store',
         required=True,
     )
+    parser.add_argument(
+        '--verbose', '-v',
+        help="Verbose operation; print records as they are received",
+        action='store_true',
+        default=False,
+    )
 
 class DataClient:
     def __init__(self, args):
