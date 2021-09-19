@@ -5,9 +5,10 @@ import argparse
 import binascii
 import cherrypy
 import datetime
+import hashlib
 import json
 import pms5003db
-import hashlib
+import traceback
 
 PORT = 15000
 
@@ -44,7 +45,8 @@ class SensorDataHandler():
             self.db.insert_batch(sensorid, sensordata)
         except Exception as e:
             self.db = None
-            print(e)
+            print(f"exception inserting records: {e}")
+            traceback.print_exc()
             cherrypy.response.status = 501
 
 def main():
