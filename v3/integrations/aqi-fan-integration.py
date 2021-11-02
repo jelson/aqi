@@ -16,6 +16,7 @@ import sys
 # project libraries
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import server.pms5003db as pms5003db
+from common.mylogging import say
 
 CONFIG = [
     {
@@ -47,7 +48,7 @@ class AQIChangeHandler:
 
     def maybe_on_off(self, c):
         aqi = self.get_oneminute_average(c)
-        print(f"sensor id {c['sensorid']} aqi now {aqi}")
+        say(f"sensor id {c['sensorid']} aqi now {aqi}")
 
         fan_is_on = c.get('fan-is-on', False)
 
@@ -67,7 +68,7 @@ class AQIChangeHandler:
 
     def change_fan_state(self, c, onoff):
         c['fan-is-on'] = onoff
-        print(f'SensorID {c["sensorid"]} tripped over threshold')
+        say(f'SensorID {c["sensorid"]} tripped over threshold')
         c['onoff-func'](onoff)
 
 def main():
