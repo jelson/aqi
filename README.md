@@ -47,7 +47,7 @@ The PMS5003 parsing code is based on
 * Configure the server that receives the data:
 
     * Install Postgres on your server. Use a SQL script similar to [this
-      example](https://github.com/jelson/aqi/blob/main/v3/create-table.sql)
+      example](https://github.com/jelson/aqi/blob/main/v3/server/create-table.sql)
       to create a database and table.
 
     * Install the receiver service's prereqs on your server: python modules `aqi`
@@ -56,22 +56,22 @@ The PMS5003 parsing code is based on
     * Create a configuration file for the receiver service specifying a password of
       your choice. If you want to use HTTPS (TLS), also specify the path to your
       HTTPS certficate, key, and cert chain.  An example config file can be found
-      [here](https://github.com/jelson/aqi/blob/main/v3/netreceiver-config-example.json).
+      [here](https://github.com/jelson/aqi/blob/main/v3/server/netreceiver-config-example.json).
 
       If you'd rather not use HTTPS, leave the certificate configuration lines out
       of the receiver configuration file. The server will start as HTTP instead of
       HTTPS. If you do this, make sure you use http:// URLs instead of https:// with
       the client tools.
 
-    * Run the receiver service using a command line like `v3/netreceiver.py --config
+    * Run the receiver service using a command line like `v3/server/netreceiver.py --config
       /path/to/config-file`. You may wish to use `systemd` to have the service start
       automatically; an example systemd config file is
-      [here](https://github.com/jelson/aqi/blob/main/v3/netreceiver.service).
+      [here](https://github.com/jelson/aqi/blob/main/v3/server/netreceiver.service).
 
     * Test the receiver. Note that by default it runs on port 15000. Run the unit
       test with a command like
        ```
-       aqi/v3/sendtest.py --url https://your-server:15000/data/ -s 1000 -n 10 -p 'password-you-picked'
+       aqi/v3/test/sendtest.py --url https://your-server:15000/data/ -s 1000 -n 10 -p 'password-you-picked'
        ```
        The return value should be `True`, indicating success. Check the database
        table and ensure it has been populated with 10 rows of data (or whatever
@@ -94,7 +94,7 @@ The PMS5003 parsing code is based on
 
    * Try running the sensor reader:
        ```
-       /home/pi/aqi/v3/rpi-reader.py -v --url https://your-server:15000/data/ -s 1 -p 'password-you-picked'
+       /home/pi/aqi/v3/client/rpi-reader.py -v --url https://your-server:15000/data/ -s 1 -p 'password-you-picked'
        ```
      The `-v` (verbose) argument tells the client to print sensor data as it
      arrives from the serial port; you should see a record about once every
@@ -104,9 +104,9 @@ The PMS5003 parsing code is based on
 
    * If it works, arrange to have the Pi start rpi-reader.py automatically on
      each boot by adding it to systemd; an example config file is
-     [here](https://github.com/jelson/aqi/blob/main/v3/rpi-reader.service). For example:
+     [here](https://github.com/jelson/aqi/blob/main/v3/client/rpi-reader.service). For example:
 
-     * `cp aqi/v3/rpi-reader.service /etc/systemd/system`
+     * `cp aqi/v3/client/rpi-reader.service /etc/systemd/system`
 
      * `vi /etc/systemd/system/rpi-reader.service` (customize with your server URL and password)
 
