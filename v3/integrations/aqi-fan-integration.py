@@ -21,8 +21,8 @@ from common.mylogging import say
 CONFIG = [
     {
         'sensorname': 'jer-office',
-        'on-thresh': 30,
-        'off-thresh': 5,
+        'on-thresh': 35,
+        'off-thresh': 8,
         'averaging-sec': 60,
         'onoff-func': nest_controller.NestController('Jer Entryway').fan_control,
     }
