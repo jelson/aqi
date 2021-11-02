@@ -23,7 +23,7 @@ class SensorDataHandler():
     def __init__(self, config):
         self.config = config
         self.db = None
-        self.password = config['password'].encode('utf-8')
+        self.bin_password = config['password'].encode('utf-8')
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -33,16 +33,18 @@ class SensorDataHandler():
         # check password -- secure method:
         if 'salt' in msg and 'auth' in msg:
             expected = hashlib.sha256(msg['salt'].encode('utf-8'))
-            expected.update(self.password)
+            expected.update(self.bin_password)
 
             actual = binascii.unhexlify(msg['auth'])
             if expected.digest() != actual:
+                print("auth mismatch")
                 cherrypy.response.status = 403
                 return
 
         # check password -- clowny method
         elif 'clowny-cleartext-password' in msg:
-            if msg['clowny-cleartext-password'] != self.password:
+            if msg['clowny-cleartext-password'] != self.config['password']:
+                print(f"password mismatch")
                 cherrypy.response.status = 403
                 return
 
