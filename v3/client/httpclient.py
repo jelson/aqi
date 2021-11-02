@@ -1,20 +1,25 @@
 # HTTP client that takes sensor data and POSTs it to a waiting listener
 
-from mylogging import say
 import binascii
 import datetime
 import hashlib
+import os
 import random
 import requests
 import string
-import util
+import sys
+
+# project libraries
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from common.mylogging import say
+import common.util
 
 # Build an argparse parser for standard arguments for clients: sensor id, url and password
 def build_parser(parser):
     parser.add_argument(
         '--sensor-id', '-s',
         help="Sensor ID",
-        type=util.gtzero,
+        type=common.util.gtzero,
         action='store',
         required=True,
     )

@@ -5,7 +5,7 @@ Description=Jeremy's AQI recorder
 Restart=always
 RestartSec=30
 User=pi
-ExecStart=/home/pi/aqi/v3/rpi-reader.py -s 50 -u https://your-server:15000/data -p 'password-you-picked'
+ExecStart=/home/pi/aqi/v3/client/rpi-reader.py -s 50 -u https://your-server:15000/data -p 'password-you-picked'
 
 [Install]
 WantedBy=multi-user.target

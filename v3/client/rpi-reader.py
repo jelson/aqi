@@ -50,17 +50,21 @@ Works with most (any?) Plantower UART PM2.5 sensor.
 # constants
 SENSOR_PATH = "/dev/ttyS0"
 
-# imports
-from mylogging import say
+# system imports
 import argparse
 import collections
-import datacache
 import datetime
-import httpclient
+import os
 import serial
 import struct
+import sys
 import time
-import util
+
+# project libraries
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+import httpclient
+import datacache
+from common.mylogging import say
 
 class PM25:
     """Super-class for generic PM2.5 sensors. Subclasses must implement

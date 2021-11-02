@@ -1,11 +1,15 @@
 # Caching class that accepts records without blocking, and periodically flushes
 # the cache to the downstream data sink.
 
-from mylogging import say
-import httpclient
+import os
+import sys
 import threading
 import time
-import util
+
+# project libraries
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from common.mylogging import say
+import httpclient
 
 class DataCache(threading.Thread):
     def __init__(self, args):

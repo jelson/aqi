@@ -5,12 +5,13 @@
 # python standard libraries
 import argparse
 import datetime
+import os
 import sys
 
 # project libraries
-sys.path.append("..")
-import httpclient
-import util
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+import client.httpclient as httpclient
+import common.util
 
 
 def test(client, args):
@@ -34,14 +35,14 @@ def main():
     parser.add_argument(
         '--num-records', '-n',
         help="Number of records to insert",
-        type=util.gtzero,
+        type=common.util.gtzero,
         action='store',
         required=True,
     )
     parser.add_argument(
         '--requests', '-r',
         help='Number of requests to make',
-        type=util.gtzero,
+        type=common.util.gtzero,
         action='store',
         default='1',
     )

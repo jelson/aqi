@@ -20,12 +20,18 @@
 # argument and set db to an instance of httpclient.
 #
 
-from mylogging import say
 import argparse
 import datacache
 import datetime
-import httpclient
 import json
+import os
+import sys
+
+# project libraries
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+import common.mylogging
+from common.mylogging import say
+import httpclient
 
 def read_forever(infile, cache):
     say("Starting to read from sensor")
@@ -63,7 +69,7 @@ def main():
 
     # set logging output
     if args.log:
-        mylogging.open_logfile(args.log)
+        common.mylogging.open_logfile(args.log)
     say(f"Starting; args: {args}")
 
     # open input file
