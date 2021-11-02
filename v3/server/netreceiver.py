@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 
-from mylogging import say
 import argparse
 import binascii
 import cherrypy
 import datetime
 import hashlib
 import json
-import pms5003db
+import os
 import subprocess
+import sys
 import traceback
+
+# project libraries
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from common.mylogging import say
+import pms5003db
 
 PORT = 15000
 
