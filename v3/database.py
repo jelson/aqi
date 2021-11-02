@@ -15,6 +15,9 @@ class DatabaseBatcher:
         quoted = [f'"{col}"' for col in column_list]
         self.stmt = f'insert into {tablename} ({",".join(quoted)}) values %s'
 
+    def get_raw_db(self):
+        return self.db
+
     # Data is a list of dicts mapping column name to value
     def insert_batch(self, recordlist):
         values = []

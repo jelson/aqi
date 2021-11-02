@@ -44,6 +44,9 @@ class PMS5003Database:
             column_list=COLNAMES,
         )
 
+    def get_raw_db(self):
+        return self.db.get_raw_db()
+
     def insert_batch(self, sensorid, recordlist):
         say("sensor id {}: writing {} records from {} to {}".format(
             sensorid, len(recordlist),
