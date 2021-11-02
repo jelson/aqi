@@ -2,7 +2,7 @@
 
 # To trigger, send a dbus message thusly:
 #
-# dbus-send --system --type=signal /org/lectrobox/aqi org.lectrobox.aqi.NewDataAvailable  dict:string:int32:sensorid,1
+# dbus-send --system --type=signal /org/lectrobox/aqi org.lectrobox.aqi.NewDataAvailable  dict:string:string:sensorname,jer-bedroom
 #
 
 from dbus.mainloop.glib import DBusGMainLoop
@@ -79,7 +79,7 @@ class AQIChangeHandler:
 
     def change_fan_state(self, c, onoff):
         c['fan-is-on'] = onoff
-        say(f'SensorID {c["sensorid"]} tripped over threshold')
+        say(f'Sensor {c["sensorname"]} tripped over threshold')
         c['onoff-func'](onoff)
 
 def main():
