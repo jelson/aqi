@@ -12,7 +12,7 @@ import sys
 # project libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.mylogging import say
-import database
+import server.database as database
 
 COLNAMES = [
     'time',
