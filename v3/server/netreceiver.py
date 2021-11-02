@@ -17,12 +17,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.mylogging import say
 import pms5003db
 
-PORT = 15000
-
 class SensorDataHandler():
     def __init__(self, config):
         self.config = config
-        self.db = None
+        self.db = pms5003db.PMS5003Database()
         self.bin_password = config['password'].encode('utf-8')
 
     @cherrypy.expose
@@ -55,22 +53,13 @@ class SensorDataHandler():
             return
 
         # prepare sensor data
-        sensorid = msg['sensorid']
+        sensorname = msg.get('sensorname', None)
+        sensorid = msg.get('sensorid', None)
         sensordata = msg['sensordata']
         for rec in sensordata:
             rec['time'] = datetime.datetime.fromtimestamp(rec['time'])
 
-        # create database if none exists
-        if not self.db:
-            self.db = pms5003db.PMS5003Database()
-
-        try:
-            self.db.insert_batch(sensorid, sensordata)
-        except Exception as e:
-            self.db = None
-            print(f"exception inserting records: {e}")
-            traceback.print_exc()
-            cherrypy.response.status = 501
+        self.db.insert_batch(sensorname, sensorid, sensordata)
 
         # Notify any integrations that new data is available
         if self.config['dbus-notify']:
@@ -80,7 +69,7 @@ class SensorDataHandler():
                 "--type=signal",
                 "/org/lectrobox/aqi",
                 "org.lectrobox.aqi.NewDataAvailable",
-                f"dict:string:int32:sensorid,{sensorid}"
+                f"dict:string:string:sensorname,{sensorname}"
             ])
 
 
@@ -104,7 +93,7 @@ def main():
     config = yaml.safe_load(open(args.config_file))
     cherrypy.config.update({
         'server.socket_host': '::',
-        'server.socket_port': PORT,
+        'server.socket_port': config['listen-port'],
     })
 
     # enable SSL if configured

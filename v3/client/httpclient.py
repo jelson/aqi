@@ -12,14 +12,12 @@ import sys
 # project libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.mylogging import say
-import common.util
 
 # Build an argparse parser for standard arguments for clients: sensor id, url and password
 def build_parser(parser):
     parser.add_argument(
-        '--sensor-id', '-s',
-        help="Sensor ID",
-        type=common.util.gtzero,
+        '--sensor-name', '-s',
+        help="Sensor name",
         action='store',
         required=True,
     )
@@ -44,14 +42,14 @@ def build_parser(parser):
 
 class DataClient:
     def __init__(self, args):
-        self.sensorid = args.sensor_id
+        self.sensorname = args.sensor_name
         self.url = args.url
         self.password = args.password.encode('utf-8')
         self.session = requests.Session()
 
     def insert_batch(self, recordlist):
-        say("sensor id {}: posting {} records from {} to {}".format(
-            self.sensorid, len(recordlist),
+        say("sensor {}: posting {} records from {} to {}".format(
+            self.sensorname, len(recordlist),
             recordlist[0]['time'], recordlist[-1]['time']))
 
         for rec in recordlist:
@@ -59,7 +57,7 @@ class DataClient:
                 rec['time'] = rec['time'].timestamp()
 
         payload = {
-            'sensorid': self.sensorid,
+            'sensorname': self.sensorname,
             'sensordata': recordlist,
         }
 

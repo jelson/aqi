@@ -30,12 +30,16 @@ class DatabaseBatcher:
             values.append([rec[col] if col in rec else None for col in self.column_list])
 
         cursor = self.db.cursor()
-        psycopg2.extras.execute_values(
-            cursor,
-            self.stmt,
-            values,
-            template=None,
-        )
 
-        self.db.commit()
-        say(f"{len(recordlist)} records committed")
+        try:
+            psycopg2.extras.execute_values(
+                cursor,
+                self.stmt,
+                values,
+                template=None,
+            )
+            say(f"{len(recordlist)} records committed")
+        except Exception as e:
+            say(f"could not commit records: {str(e)}")
+        finally:
+            self.db.commit()

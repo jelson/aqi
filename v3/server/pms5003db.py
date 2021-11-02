@@ -14,15 +14,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.mylogging import say
 import server.database as database
 
-COLNAMES = [
-    'time',
-    'sensorid',
-    'pm1.0',
-    'pm2.5',
-    'pm10.0',
-    'aqi2.5',
-]
-
 # Convert PM2.5 to AQI. It seems that AQI is not defined above PM2.5
 # of 500 so we just add to it linearly after that.
 def convert_aqi(pm):
@@ -45,20 +36,55 @@ class PMS5003Database:
     def __init__(self):
         self.db = database.DatabaseBatcher(
             dbname="airquality",
-            tablename="particulatev3",
-            column_list=COLNAMES,
+            tablename="sensordatav4",
+            column_list=[
+                'time',
+                'sensorid',
+                'datatype',
+                'value',
+            ]
         )
+
+        cursor = self.db.get_raw_db().cursor()
+        # get the list of valid sensor ids
+        cursor.execute("select name, id from sensordatav4_sensors")
+        self.sensornames = {row[0]: row[1] for row in cursor.fetchall()}
+        say(f"sensor names: {self.sensornames}")
+
+        # get the list of valid data types
+        cursor.execute("select name, id from sensordatav4_types")
+        self.sensortypes = {row[0]: row[1] for row in cursor.fetchall()}
+        say(f"sensor types: {self.sensortypes}")
 
     def get_raw_db(self):
         return self.db.get_raw_db()
 
-    def insert_batch(self, sensorid, recordlist):
-        say("sensor id {}: writing {} records from {} to {}".format(
-            sensorid, len(recordlist),
+    # sensorid is for backcompat and will go away soon
+    def insert_batch(self, sensorname, sensorid, recordlist):
+        if not sensorid:
+            sensorid = self.sensornames.get(sensorname, None)
+        if not sensorid:
+            raise Exception(f"unknown sensor name {sensorname}")
+
+        say("sensor {} (id {}): writing {} records from {} to {}".format(
+            sensorname, sensorid, len(recordlist),
             recordlist[0]['time'], recordlist[-1]['time']))
 
-        for record in recordlist:
-            record['sensorid'] = sensorid
-            record['aqi2.5'] = convert_aqi(record['pm2.5'])
+        insertion_list = []
 
-        self.db.insert_batch(recordlist)
+        for record in recordlist:
+            time = record.pop('time')
+            if 'pm2.5' in record:
+                record['aqi2.5'] = convert_aqi(record['pm2.5'])
+            for key, val in record.items():
+                datatype = self.sensortypes.get(key, None)
+                if not datatype:
+                    raise Exception(f"sensor {sensorname} sent unknown field '{key}'")
+                insertion_list.append({
+                    'time': time,
+                    'sensorid': sensorid,
+                    'datatype': datatype,
+                    'value': val,
+                })
+
+        self.db.insert_batch(insertion_list)

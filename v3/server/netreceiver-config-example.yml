@@ -3,6 +3,9 @@
 # pick a password for your server
 password: your-password-here
 
+# port number your service should listen on
+listen-port: 14000
+
 # change to true if you want the listener to generate dbus
 # notifications every time data arrives, for integrations
 dbus-notify: false
