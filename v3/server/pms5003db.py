@@ -5,8 +5,13 @@
 # columns; annotates each record with a sensor id; and computes AQI
 # from the raw PM2.5 value for each record.
 
-from mylogging import say
 import aqi
+import os
+import sys
+
+# project libraries
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from common.mylogging import say
 import database
 
 COLNAMES = [

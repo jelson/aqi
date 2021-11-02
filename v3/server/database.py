@@ -4,9 +4,14 @@
 # postgres database from a list of dicts that map column name to a
 # value.
 
-from mylogging import say
+import os
 import psycopg2
 import psycopg2.extras
+import sys
+
+# project libraries
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from common.mylogging import say
 
 class DatabaseBatcher:
     def __init__(self, dbname, tablename, column_list):
