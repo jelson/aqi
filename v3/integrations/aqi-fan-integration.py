@@ -58,12 +58,15 @@ class AQIChangeHandler:
             self.change_fan_state(c, True)
 
     def get_oneminute_average(self, c):
-        cursor = self.pmsdb.get_raw_db().cursor()
+        db = self.pmsdb.get_raw_db()
+        cursor = db.cursor()
         cursor.execute(
             'select avg("aqi2.5") from particulatev3 where sensorid=%s and time > now() - interval \'%s seconds\'',
             (c['sensorid'], c['averaging-sec'])
         )
         row = cursor.fetchone()
+        # end the transaction - otherwise, the value of now() never changes
+        db.commit()
         return(row[0])
 
     def change_fan_state(self, c, onoff):
