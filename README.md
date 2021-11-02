@@ -56,7 +56,7 @@ The PMS5003 parsing code is based on
     * Create a configuration file for the receiver service specifying a password of
       your choice. If you want to use HTTPS (TLS), also specify the path to your
       HTTPS certficate, key, and cert chain.  An example config file can be found
-      [here](https://github.com/jelson/aqi/blob/main/v3/server/netreceiver-config-example.json).
+      [here](https://github.com/jelson/aqi/blob/main/v3/server/netreceiver-config-example.yml).
 
       If you'd rather not use HTTPS, leave the certificate configuration lines out
       of the receiver configuration file. The server will start as HTTP instead of
@@ -64,7 +64,7 @@ The PMS5003 parsing code is based on
       the client tools.
 
     * Run the receiver service using a command line like `v3/server/netreceiver.py --config
-      /path/to/config-file`. You may wish to use `systemd` to have the service start
+      /path/to/config-file.yml`. You may wish to use `systemd` to have the service start
       automatically; an example systemd config file is
       [here](https://github.com/jelson/aqi/blob/main/v3/server/netreceiver.service).
 

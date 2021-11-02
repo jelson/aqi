@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import traceback
+import yaml
 
 # project libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -98,7 +99,7 @@ def main():
     args = parser.parse_args()
     if args.log:
         logging.open_logfile(args.log)
-    config = json.load(open(args.config_file))
+    config = yaml.safe_load(open(args.config_file))
     cherrypy.config.update({
         'server.socket_host': '::',
         'server.socket_port': PORT,

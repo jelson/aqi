@@ -1,0 +1,13 @@
+---
+
+# pick a password for your server
+password: your-password-here
+
+# change to true if you want the listener to generate dbus
+# notifications every time data arrives, for integrations
+dbus-notify: false
+
+# Uncomment these if you want cherrypy to listen with HTTPS
+#certpath: "/etc/letsencrypt/live/example.com/cert.pem"
+#chainpath: "/etc/letsencrypt/live/example.com/fullchain.pem"
+#keypath: "/etc/letsencrypt/live/example.com/privkey.pem"
