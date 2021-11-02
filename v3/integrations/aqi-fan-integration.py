@@ -20,7 +20,7 @@ from common.mylogging import say
 
 CONFIG = [
     {
-        'sensorid': 1,
+        'sensorname': 'jer-office',
         'on-thresh': 30,
         'off-thresh': 5,
         'averaging-sec': 60,
@@ -40,15 +40,15 @@ class AQIChangeHandler:
     # dbus signal handler
     def NewDataAvailable(self, *args, **kwargs):
         argdict = dict(args[0])
-        sensorid = int(argdict['sensorid'])
+        sensorname = str(argdict['sensorname'])
 
         for c in CONFIG:
-            if c['sensorid'] == sensorid:
+            if c['sensorname'] == sensorname:
                 self.maybe_on_off(c)
 
     def maybe_on_off(self, c):
         aqi = self.get_oneminute_average(c)
-        say(f"sensor id {c['sensorid']} aqi now {aqi}")
+        say(f"sensor {c['sensorname']} aqi now {aqi}")
 
         fan_is_on = c.get('fan-is-on', False)
 
@@ -61,8 +61,16 @@ class AQIChangeHandler:
         db = self.pmsdb.get_raw_db()
         cursor = db.cursor()
         cursor.execute(
-            'select avg("aqi2.5") from particulatev3 where sensorid=%s and time > now() - interval \'%s seconds\'',
-            (c['sensorid'], c['averaging-sec'])
+            """
+            select
+               avg("value") from sensordatav4
+            where
+               sensorid=%s and
+               datatype=%s and
+                time > now() - interval '%s seconds'""", (
+                    self.pmsdb.get_sensorid_by_name(c['sensorname']),
+                    self.pmsdb.get_datatype_by_name("aqi2.5"),
+                    c['averaging-sec'])
         )
         row = cursor.fetchone()
         # end the transaction - otherwise, the value of now() never changes

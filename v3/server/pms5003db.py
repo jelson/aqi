@@ -53,16 +53,22 @@ class PMS5003Database:
 
         # get the list of valid data types
         cursor.execute("select name, id from sensordatav4_types")
-        self.sensortypes = {row[0]: row[1] for row in cursor.fetchall()}
-        say(f"sensor types: {self.sensortypes}")
+        self.datatypes = {row[0]: row[1] for row in cursor.fetchall()}
+        say(f"data types: {self.datatypes}")
 
     def get_raw_db(self):
         return self.db.get_raw_db()
 
+    def get_sensorid_by_name(self, sensorname):
+        return self.sensornames.get(sensorname, None)
+
+    def get_datatype_by_name(self, datatype):
+        return self.datatypes.get(datatype, None)
+
     # sensorid is for backcompat and will go away soon
     def insert_batch(self, sensorname, sensorid, recordlist):
         if not sensorid:
-            sensorid = self.sensornames.get(sensorname, None)
+            sensorid = self.get_sensorid_by_name(sensorname)
         if not sensorid:
             raise Exception(f"unknown sensor name {sensorname}")
 
@@ -77,7 +83,7 @@ class PMS5003Database:
             if 'pm2.5' in record:
                 record['aqi2.5'] = convert_aqi(record['pm2.5'])
             for key, val in record.items():
-                datatype = self.sensortypes.get(key, None)
+                datatype = self.get_datatype_by_name(key)
                 if not datatype:
                     raise Exception(f"sensor {sensorname} sent unknown field '{key}'")
                 insertion_list.append({
