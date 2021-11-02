@@ -14,7 +14,7 @@ import psycopg2
 import sys
 
 # project libraries
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "aqi", "v3"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import server.pms5003db as pms5003db
 
 CONFIG = [
