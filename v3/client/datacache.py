@@ -27,6 +27,9 @@ class DataCache(threading.Thread):
         if self.args.verbose:
             say(f"got record: {record}")
 
+    def set_send_callback(self, cb):
+        self.client.set_send_callback(cb)
+
     def run(self):
         to_xmit = []
         while True:

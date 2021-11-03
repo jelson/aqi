@@ -1,0 +1,12 @@
+[Unit]
+Description=Dave's Adaptation of Jeremy's AQI recorder
+
+[Service]
+Restart=always
+RestartSec=30
+User=pi
+ExecStart=/home/pi/aqi/v3/client/rpi-pimoroni-enviroplus.py -s <name> -u <server_url> -p <password>
+
+[Install]
+WantedBy=multi-user.target
+Alias=aqi.service
