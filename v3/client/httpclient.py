@@ -46,6 +46,10 @@ class DataClient:
         self.url = args.url
         self.password = args.password.encode('utf-8')
         self.session = requests.Session()
+        self.cb = None
+
+    def set_send_callback(self, cb):
+        self.cb = cb
 
     def insert_batch(self, recordlist):
         say("sensor {}: posting {} records from {} to {}".format(
@@ -72,6 +76,12 @@ class DataClient:
         except Exception as e:
             say(f"failed to http post: {e}")
             return False
+
+        if self.cb:
+            try:
+                self.cb(retval)
+            except Exception as e:
+                say(f"callback failed: {e}")
 
         if retval.status_code == 200:
             return True
