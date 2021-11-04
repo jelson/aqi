@@ -111,6 +111,11 @@ def main():
         'server.socket_port': config['listen-port'],
     })
 
+    if config.get('is-proxy', False):
+        cherrypy.config.update({
+            'tools.proxy.on': True,
+        })
+
     # enable SSL if configured
     if 'certpath' in config:
         cherrypy.config.update({
