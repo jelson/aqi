@@ -24,6 +24,20 @@ class SensorDataHandler():
         self.bin_password = config['password'].encode('utf-8')
 
     @cherrypy.expose
+    def mac_lookup(self, macaddr):
+        db = self.db.get_raw_db()
+        cursor = db.cursor()
+        cursor.execute(
+            "select name from sensordatav4_sensors where macaddr=%s",
+            (macaddr,))
+        result = cursor.fetchone()
+        db.commit()
+        if result:
+            return result[0]
+        else:
+            return ""
+
+    @cherrypy.expose
     @cherrypy.tools.json_in()
     def data(self):
         msg = cherrypy.request.json

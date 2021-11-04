@@ -18,6 +18,7 @@ create table sensordatav4_sensors (
    "name" varchar not null,
    "ui_label" varchar not null,
    "location" point,
+   "macaddr" varchar,
    primary key(id)
 );
 
