@@ -35,6 +35,7 @@ class SensorDataHandler():
         if result:
             return result[0]
         else:
+            cherrypy.response.status = 401
             return ""
 
     @cherrypy.expose
