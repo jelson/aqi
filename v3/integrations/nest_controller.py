@@ -71,6 +71,7 @@ class NestController():
 
 def main():
     controller = NestController('Jer Entryway')
+    controller.list_all_devices()
     controller.get_status()
 
 if __name__ == '__main__':
