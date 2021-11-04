@@ -38,7 +38,7 @@ class DatabaseBatcher:
                 values,
                 template=None,
             )
-            say(f"{len(recordlist)} records committed")
+            #say(f"{len(recordlist)} records committed")
         except Exception as e:
             say(f"could not commit records: {str(e)}")
         finally:
