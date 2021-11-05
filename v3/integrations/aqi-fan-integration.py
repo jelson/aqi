@@ -21,8 +21,9 @@ from common.mylogging import say
 CONFIG = [
     {
         'sensorname': 'jer-office',
+        'datatype': 'aqi2.5',
         'on-thresh': 35,
-        'off-thresh': 8,
+        'off-thresh': 10,
         'averaging-sec': 60,
         'onoff-func': nest_controller.NestController('Jer Entryway').fan_control,
     }
@@ -69,7 +70,7 @@ class AQIChangeHandler:
                datatype=%s and
                 time > now() - interval '%s seconds'""", (
                     self.pmsdb.get_sensorid_by_name(c['sensorname']),
-                    self.pmsdb.get_datatype_by_name("aqi2.5"),
+                    self.pmsdb.get_datatype_by_name(c['datatype']),
                     c['averaging-sec'])
         )
         row = cursor.fetchone()
