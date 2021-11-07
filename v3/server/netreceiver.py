@@ -114,6 +114,7 @@ def main():
     cherrypy.config.update({
         'server.socket_host': '::',
         'server.socket_port': config['listen-port'],
+        'server.socket_timeout': 30,
     })
 
     if config.get('is-proxy', False):
