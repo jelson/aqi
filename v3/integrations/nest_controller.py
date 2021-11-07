@@ -45,10 +45,10 @@ class NestController():
         return json_response
 
     def list_all_devices(self):
-        status = self._execute_request("{control_url}/enterprises/{project}/devices".format(**self.config))
+        return self._execute_request("{control_url}/enterprises/{project}/devices".format(**self.config))
 
     def get_status(self):
-        status = self._execute_request("{control_url}/enterprises/{project}/devices/{device}".format(**self.config))
+        return self._execute_request("{control_url}/enterprises/{project}/devices/{device}".format(**self.config))
 
     def _command_url(self):
         return "{control_url}/enterprises/{project}/devices/{device}:executeCommand".format(**self.config)
@@ -72,6 +72,9 @@ class NestController():
 def main():
     controller = NestController('Jer Entryway')
     controller.list_all_devices()
+    controller.get_status()
+
+    controller = NestController('Jer Bedroom')
     controller.get_status()
 
 if __name__ == '__main__':
