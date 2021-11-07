@@ -26,7 +26,15 @@ CONFIG = [
         'off-thresh': 10,
         'averaging-sec': 60,
         'onoff-func': nest_controller.NestController('Jer Entryway').fan_control,
-    }
+    },
+    {
+        'sensorname': 'jer-bedroom',
+        'datatype': 'aqi2.5',
+        'on-thresh': 35,
+        'off-thresh': 10,
+        'averaging-sec': 60,
+        'onoff-func': nest_controller.NestController('Jer Bedroom').fan_control,
+    },
 ]
 
 class AQIChangeHandler:
