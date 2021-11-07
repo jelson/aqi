@@ -66,15 +66,19 @@ class PMS5003Database:
         return self.datatypes.get(datatype, None)
 
     # sensorid is for backcompat and will go away soon
-    def insert_batch(self, sensorname, sensorid, recordlist):
+    def insert_batch(self, sensorname, sensorid, recordlist, debugstr=None):
         if not sensorid:
             sensorid = self.get_sensorid_by_name(sensorname)
         if not sensorid:
             raise Exception(f"unknown sensor name {sensorname}")
 
-        say("sensor {} (id {}): writing {} records from {} to {}".format(
+        # write log message
+        logmsg = "sensor {} (id {}): writing {} records from {} to {}".format(
             sensorname, sensorid, len(recordlist),
-            recordlist[0]['time'], recordlist[-1]['time']))
+            recordlist[0]['time'], recordlist[-1]['time'])
+        if debugstr:
+            logmsg = debugstr + ": " + logmsg
+        say(logmsg)
 
         insertion_list = []
 

@@ -25,6 +25,7 @@ class SensorDataHandler():
 
     @cherrypy.expose
     def mac_lookup(self, macaddr):
+        say("got lookup request for " + str(macaddr))
         db = self.db.get_raw_db()
         cursor = db.cursor()
         cursor.execute(
@@ -50,20 +51,20 @@ class SensorDataHandler():
 
             actual = binascii.unhexlify(msg['auth'])
             if expected.digest() != actual:
-                print("auth mismatch")
+                say("auth mismatch")
                 cherrypy.response.status = 403
                 return
 
         # check password -- clowny method
         elif 'clowny-cleartext-password' in msg:
             if msg['clowny-cleartext-password'] != self.config['password']:
-                print(f"password mismatch")
+                say(f"password mismatch")
                 cherrypy.response.status = 403
                 return
 
         # No password provided
         else:
-            print("no auth data provided; denying request")
+            say("no auth data provided; denying request")
             cherrypy.response.status = 403
             return
 
@@ -74,7 +75,11 @@ class SensorDataHandler():
         for rec in sensordata:
             rec['time'] = datetime.datetime.fromtimestamp(rec['time'])
 
-        self.db.insert_batch(sensorname, sensorid, sensordata)
+        debugstr = "{}:{}".format(
+            cherrypy.request.remote.ip,
+            cherrypy.request.headers.get('User-Agent', 'no-user-agent')
+        )
+        self.db.insert_batch(sensorname, sensorid, sensordata, debugstr=debugstr)
 
         # Notify any integrations that new data is available
         if self.config['dbus-notify']:
