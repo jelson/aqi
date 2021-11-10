@@ -9,7 +9,7 @@ import json
 import os
 import subprocess
 import sys
-import traceback
+import tempfile
 import yaml
 
 # project libraries
@@ -22,6 +22,11 @@ class SensorDataHandler():
         self.config = config
         self.db = pms5003db.PMS5003Database()
         self.bin_password = config['password'].encode('utf-8')
+        self.lookup_log = tempfile.NamedTemporaryFile(mode="w")
+
+    @cherrypy.expose
+    def recent_lookups(self):
+        return open(self.lookup_log.name).read()
 
     @cherrypy.expose
     def mac_lookup(self, macaddr):
@@ -34,10 +39,14 @@ class SensorDataHandler():
         result = cursor.fetchone()
         db.commit()
         if result:
-            return result[0]
+            sensorname = result[0]
         else:
             cherrypy.response.status = 401
-            return ""
+            sensorname = None
+
+        self.lookup_log.write(f"<p>{datetime.datetime.now()}: Got lookup request for mac {macaddr}, returned {sensorname}\n")
+        self.lookup_log.flush()
+        return sensorname
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
