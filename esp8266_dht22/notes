@@ -1,0 +1,33 @@
+Fixed arduino install with #11 at https://bugs.launchpad.net/ubuntu/+source/arduino/+bug/1916278
+
+Add esp8266 to arduino ide:
+
+https://create.arduino.cc/projecthub/harshmangukiya/how-to-program-esp8266-with-arduino-uno-efb05f
+
+Select board according to:
+
+http://www.hiletgo.com/ProductDetail/1906570.html
+
+
+https://create.arduino.cc/projecthub/neverofftheinternet/esp8266-setup-and-first-wifi-connection-76fc3c
+
+# Reading back serial:
+## POWER THE BMP! Plug the red wire into 3.3V on the device.
+grabserial -d /dev/ttyACM1 -b 115200
+
+https://techtutorialsx.com/2016/07/17/esp8266-http-get-requests/
+
+https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266HTTPClient/examples
+
+Actually most of what I want:
+
+https://randomnerdtutorials.com/esp8266-dht11dht22-temperature-and-humidity-web-server-with-arduino-ide/
+
+about 50mA.
+
+
+################################################################################
+Jeremy's site:
+
+https://airquality.circlemud.org/d/z35gbipMz/home-air-quality?orgId=1&var-sensorid=151&var-sensortype=10005&from=now-15m&to=now
+
