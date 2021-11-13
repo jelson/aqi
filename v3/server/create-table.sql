@@ -50,17 +50,35 @@ create table sensordatav4 (
    "time" timestamptz not null,
    "sensorid" integer not null,
    "datatype" integer not null,
-   "value" integer not null,
+   "value" double precision not null,
+   constraint fk_sensorid foreign key(sensorid) references sensordatav4_sensors(id),
+   constraint fk_datatype foreign key(datatype) references sensordatav4_types(id)
+);
+create index sensordatav4_time_idx on sensordatav4(time);
+create index sensordatav4_sensorid_and_datatype_idx on sensordatav4(sensorid, datatype);
+
+/*
+ * create a table for just holding the most recent entry of each
+ * sensor type, for liveness checking
+ */
+create table sensordatav4_latest (
+   "time" timestamptz not null,
+   "sensorid" integer not null,
+   "datatype" integer not null,
+   "value" double precision not null,
+   primary key (sensorid, datatype),
    constraint fk_sensorid foreign key(sensorid) references sensordatav4_sensors(id),
    constraint fk_datatype foreign key(datatype) references sensordatav4_types(id)
 );
 
-create index sensordatav4_time_idx on sensordatav4(time);
+/* permissions */
 grant all on sensordatav4 to jelson;
+grant all on sensordatav4_latest to jelson;
 grant all on sensordatav4_sensors to jelson;
 grant all on sensordatav4_types to jelson;
 create user grafana password 'i-love-data';
 grant select on all tables in schema public to grafana;
 grant select on sensordatav4 to grafana;
+grant select on sensordatav4_latest to grafana;
 grant select on sensordatav4_types to grafana;
 grant select on sensordatav4_sensors to grafana;
