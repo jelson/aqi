@@ -72,7 +72,7 @@ class AQIChangeHandler:
         cursor.execute(
             """
             select
-               avg("value") from sensordatav4
+               avg("value") from sensordatav4_tsdb
             where
                sensorid=%s and
                datatype=%s and

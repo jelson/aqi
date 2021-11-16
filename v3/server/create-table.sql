@@ -46,16 +46,20 @@ insert into sensordatav4_types (id, name) values
    (10006, 'humidity')
 ;
 
-create table sensordatav4 (
+create table sensordatav4_tsdb (
    "time" timestamptz not null,
+   "received_at" timestamptz not null,
    "sensorid" integer not null,
    "datatype" integer not null,
    "value" double precision not null,
    constraint fk_sensorid foreign key(sensorid) references sensordatav4_sensors(id),
    constraint fk_datatype foreign key(datatype) references sensordatav4_types(id)
 );
-create index sensordatav4_time_idx on sensordatav4(time);
-create index sensordatav4_sensorid_and_datatype_idx on sensordatav4(sensorid, datatype);
+create index sensordatav4_time_idx on sensordatav4_tsdb(time);
+create index sensordatav4_sensorid_and_datatype_idx on sensordatav4_tsdb(sensorid, datatype);
+
+/* make the main data table a timescaledb table */
+SELECT create_hypertable('sensordatav4_tsdb','time');
 
 /*
  * create a table for just holding the most recent entry of each
@@ -63,6 +67,7 @@ create index sensordatav4_sensorid_and_datatype_idx on sensordatav4(sensorid, da
  */
 create table sensordatav4_latest (
    "time" timestamptz not null,
+   "received_at" timestamptz not null,
    "sensorid" integer not null,
    "datatype" integer not null,
    "value" double precision not null,
@@ -72,13 +77,14 @@ create table sensordatav4_latest (
 );
 
 /* permissions */
-grant all on sensordatav4 to jelson;
+grant all on sensordatav4_tsdb to jelson;
 grant all on sensordatav4_latest to jelson;
 grant all on sensordatav4_sensors to jelson;
 grant all on sensordatav4_types to jelson;
-create user grafana password 'i-love-data';
+
+create user grafana password 'your-password-here';
 grant select on all tables in schema public to grafana;
-grant select on sensordatav4 to grafana;
+grant select on sensordatav4_tsdb to grafana;
 grant select on sensordatav4_latest to grafana;
 grant select on sensordatav4_types to grafana;
 grant select on sensordatav4_sensors to grafana;

@@ -100,12 +100,13 @@ class PMS5003Database:
                     'value': val,
                 })
 
+        self.db.rollback()
         cursor = self.db.cursor()
         psycopg2.extras.execute_values(
             cursor,
-            "insert into sensordatav4 (time, sensorid, datatype, value) values %s",
+            "insert into sensordatav4_tsdb (time, sensorid, datatype, value, received_at) values %s",
             insertion_list,
-            template="(%(time)s, %(sensorid)s, %(datatype)s, %(value)s)",
+            template="(%(time)s, %(sensorid)s, %(datatype)s, %(value)s, now())",
         )
 
         # find the most recent record of each datatype and update the
@@ -119,14 +120,17 @@ class PMS5003Database:
         psycopg2.extras.execute_values(
             cursor,
             """
-            insert into sensordatav4_latest (sensorid, datatype, time, value)
+            insert into sensordatav4_latest (sensorid, datatype, time, value, received_at)
             values %s
             on
                conflict (sensorid, datatype)
             do
-                update set time=excluded.time, value=excluded.value
+                update set
+                    time=excluded.time,
+                    value=excluded.value,
+                    received_at=excluded.received_at
             """,
             list(latest.values()),
-            template="(%(sensorid)s, %(datatype)s, %(time)s, %(value)s)",
+            template="(%(sensorid)s, %(datatype)s, %(time)s, %(value)s, now())",
         )
         self.db.commit()
