@@ -49,9 +49,19 @@ class SensorDataHandler():
         return sensorname
 
     @cherrypy.expose
-    @cherrypy.tools.json_in()
     def data(self):
-        msg = cherrypy.request.json
+        debugstr = "{}:{}".format(
+            cherrypy.request.remote.ip,
+            cherrypy.request.headers.get('User-Agent', 'no-user-agent')
+        )
+
+        body = cherrypy.request.body.read()
+        try:
+            msg = json.loads(body)
+        except Exception as e:
+            say(f"{debugstr}: got invalid json document: {body}")
+            cherrypy.response.status = 400
+            return
 
         # check password -- secure method:
         if 'salt' in msg and 'auth' in msg:
@@ -84,10 +94,6 @@ class SensorDataHandler():
         for rec in sensordata:
             rec['time'] = datetime.datetime.fromtimestamp(rec['time'])
 
-        debugstr = "{}:{}".format(
-            cherrypy.request.remote.ip,
-            cherrypy.request.headers.get('User-Agent', 'no-user-agent')
-        )
         self.db.insert_batch(sensorname, sensorid, sensordata, debugstr=debugstr)
 
         # Notify any integrations that new data is available
