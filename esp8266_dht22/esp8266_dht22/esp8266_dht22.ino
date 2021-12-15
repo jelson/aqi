@@ -15,6 +15,8 @@
 // salted hashed password
 // batching
 
+// On the bigger boards pin 14 is labeled D5.
+// On the little boards it's also labeled D5. Hooray!
 #define DHTPIN  14  // https://randomnerdtutorials.com/esp8266-pinout-reference-gpios/
 #define DHTTYPE DHT22
 
@@ -22,7 +24,7 @@
 
 #if TEST_MODE
 
-#define SAMPLE_PERIOD_SEC (1)
+#define SAMPLE_PERIOD_SEC (8)
 #define BATCH_SIZE        (10)
 #define BACKLOG_LIMIT     (11)
 #define FAILURE_MASK      (0)
@@ -180,17 +182,23 @@ struct Metrics {
   int https_begins;
 } metrics;
 
-void collect_sample() {
+bool collect_sample() {
   if (batch_count >= BACKLOG_LIMIT) {
     Serial.printf("assertion failed: batch_count exceeds BACKLOG_LIMIT\n");
-    return;
+    return false;
   }
   Sample *sample = &batch[batch_count];
   sample->epochTime = timeClient.getEpochTime();
   sample->temperature_C = dht.readTemperature();
   sample->humidity_perc = dht.readHumidity();
-  Serial.printf("Collecting sample #%d at epochTime %ld upload_failures %d https_begins %d\n",
-    metrics.total_samples, sample->epochTime,
+  if (isnan(sample->temperature_C) || isnan(sample->humidity_perc)) {
+    Serial.printf("Rejecting invalid (nan) sample\n");
+    return false;
+  }
+  Serial.printf("Collecting sample #%d temp_c %.1f at epochTime %ld upload_failures %d https_begins %d\n",
+    metrics.total_samples,
+    sample->temperature_C,
+    sample->epochTime,
     metrics.upload_failures, metrics.https_begins);
   metrics.total_samples += 1;
   batch_count += 1;
@@ -198,10 +206,12 @@ void collect_sample() {
 #if TEST_MODE
   simulate_failure += 1;
 #endif
+  return true;
 }
 
 
-void upload_batch() {
+bool upload_batch() {
+  bool success = false;
   if (client_needs_reset || !https.connected()) {
     Serial.printf("Connecting https\n");
     https.begin(*client, LECTROBOX_DATA_URL);
@@ -236,9 +246,11 @@ void upload_batch() {
 
     // file found at server
     if (httpCode == HTTP_CODE_OK) {
+      success = true;
       reset_batch();
     } else {
-       metrics.upload_failures += 1;
+      success = false;
+      metrics.upload_failures += 1;
     }
   } else {
     Serial.printf("[HTTP] POST... failed, error: %s\n", https.errorToString(httpCode).c_str());
@@ -247,15 +259,21 @@ void upload_batch() {
 
   https.end();
   // Leave the connection open for later.
+  return success;
 }
+
+//bool message_A[20] = {1,0,1,1,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0};
+bool message_B[20] = {1,1,0,1,0, 1,0,1,0,0, 0,0,0,0,0, 0,0,0,0,0};
+bool message_1[20] = {1,0,1,1,0, 1,1,0,1,1, 0,1,1,0,0, 0,0,0,0,0}; // no sensor data
+bool message_2[20] = {1,0,1,0,1, 1,0,1,1,0, 1,1,0,0,0, 0,0,0,00,}; // upload failed
 
 void loop() {
   timeClient.update();
-
-  collect_sample();
+  bool valid_sample = collect_sample();
+  bool upload_successful = true;
   if (batch_count >= BATCH_SIZE) {
         Serial.printf("batch_count %d limit %d uploading\n", batch_count, BATCH_SIZE);
-    upload_batch();
+    upload_successful = upload_batch();
   }
   if (batch_count >= BACKLOG_LIMIT) {
     Serial.printf("Exceeded backlog limit %d; resetting\n", BACKLOG_LIMIT);
@@ -265,17 +283,20 @@ void loop() {
   }
 
   // Version A ". -"
-  bool blink_schedule[10] = {1,0,1,1,0,0,0,0,0,0};
-  for (int sec=0; sec < SAMPLE_PERIOD_SEC; sec++) {
-    for (int i=0; i<10; i++) {
+  bool *blink_schedule = message_B;
+  if (!valid_sample) { blink_schedule = message_1; }
+  if (!upload_successful) { blink_schedule = message_2; }
+  // 20 periods of 200ms is 4 sec, hence the /4:
+  for (int sec=0; sec < (SAMPLE_PERIOD_SEC/4); sec++) {
+    for (int i=0; i<20; i++) {
         bool blink_state = !blink_schedule[i];
-        Serial.printf("blink %d\n", blink_state);
+        //Serial.printf("blink %d\n", blink_state);
         if (blink_state) {
           digitalWrite(LED_BUILTIN, HIGH);
         } else {
           digitalWrite(LED_BUILTIN, LOW);
         }
-        delay(100);
+        delay(200);
     }
     digitalWrite(LED_BUILTIN, LOW);
   }
