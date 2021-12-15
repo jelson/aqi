@@ -8,6 +8,7 @@
 import aqi
 import os
 import sys
+import psycopg2
 
 # project libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -34,18 +35,9 @@ def convert_aqi(pm):
 
 class PMS5003Database:
     def __init__(self):
-        self.db = database.DatabaseBatcher(
-            dbname="airquality",
-            tablename="sensordatav4",
-            column_list=[
-                'time',
-                'sensorid',
-                'datatype',
-                'value',
-            ]
-        )
+        self.db = psycopg2.connect(database="airquality")
 
-        cursor = self.db.get_raw_db().cursor()
+        cursor = self.db.cursor()
         # get the list of valid sensor ids
         cursor.execute("select name, id from sensordatav4_sensors")
         self.sensornames = {row[0]: row[1] for row in cursor.fetchall()}
@@ -55,9 +47,10 @@ class PMS5003Database:
         cursor.execute("select name, id from sensordatav4_types")
         self.datatypes = {row[0]: row[1] for row in cursor.fetchall()}
         say(f"data types: {self.datatypes}")
+        self.db.commit()
 
     def get_raw_db(self):
-        return self.db.get_raw_db()
+        return self.db
 
     def get_sensorid_by_name(self, sensorname):
         return self.sensornames.get(sensorname, None)
@@ -71,6 +64,8 @@ class PMS5003Database:
             sensorid = self.get_sensorid_by_name(sensorname)
         if not sensorid:
             raise Exception(f"unknown sensor name {sensorname}")
+        if not recordlist:
+            raise Exception(f"{sensorname}: empty record list")
 
         # write log message
         logmsg = "sensor {} (id {}): writing {} records from {} to {}".format(
@@ -80,16 +75,24 @@ class PMS5003Database:
             logmsg = debugstr + ": " + logmsg
         say(logmsg)
 
+        # generate a list of rows to be inserted into the database
+        # from the json record sent by the client
         insertion_list = []
-
         for record in recordlist:
             time = record.pop('time')
+            # if this record has a PM2.5 record, also compute the EPA
+            # AQI2.5 value for it
             if 'pm2.5' in record:
                 record['aqi2.5'] = convert_aqi(record['pm2.5'])
+
+            # for each data type in this record, look up the datatype
+            # id associated with that datatype name and prepare a
+            # database row with that data and the record's time
             for key, val in record.items():
                 datatype = self.get_datatype_by_name(key)
                 if not datatype:
-                    raise Exception(f"sensor {sensorname} sent unknown field '{key}'")
+                    say(f"WARNING: sensor {sensorname} sent unknown field '{key}'")
+                    continue
                 insertion_list.append({
                     'time': time,
                     'sensorid': sensorid,
@@ -97,4 +100,37 @@ class PMS5003Database:
                     'value': val,
                 })
 
-        self.db.insert_batch(insertion_list)
+        self.db.rollback()
+        cursor = self.db.cursor()
+        psycopg2.extras.execute_values(
+            cursor,
+            "insert into sensordatav4_tsdb (time, sensorid, datatype, value, received_at) values %s",
+            insertion_list,
+            template="(%(time)s, %(sensorid)s, %(datatype)s, %(value)s, now())",
+        )
+
+        # find the most recent record of each datatype and update the
+        # "latest records" list. Latest is a map from each datatype to
+        # the most recent record of that datatype.
+        latest = {}
+        for insertion in insertion_list:
+            datatype = insertion['datatype']
+            if not datatype in latest or latest[datatype]['time'] < insertion['time']:
+                latest[datatype] = insertion
+        psycopg2.extras.execute_values(
+            cursor,
+            """
+            insert into sensordatav4_latest (sensorid, datatype, time, value, received_at)
+            values %s
+            on
+               conflict (sensorid, datatype)
+            do
+                update set
+                    time=excluded.time,
+                    value=excluded.value,
+                    received_at=excluded.received_at
+            """,
+            list(latest.values()),
+            template="(%(sensorid)s, %(datatype)s, %(time)s, %(value)s, now())",
+        )
+        self.db.commit()
