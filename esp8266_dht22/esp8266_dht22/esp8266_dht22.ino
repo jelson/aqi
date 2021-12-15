@@ -262,18 +262,107 @@ bool upload_batch() {
   return success;
 }
 
+String morseEncode(char x)
+{
+    // https://www.geeksforgeeks.org/morse-code-implementation/
+    // refer to the Morse table
+    // image attached in the article
+    switch (x) {
+    case 'a':
+        return ".-";
+    case 'b':
+        return "-...";
+    case 'c':
+        return "-.-.";
+    case 'd':
+        return "-..";
+    case 'e':
+        return ".";
+    case 'f':
+        return "..-.";
+    case 'g':
+        return "--.";
+    case 'h':
+        return "....";
+    case 'i':
+        return "..";
+    case 'j':
+        return ".---";
+    case 'k':
+        return "-.-";
+    case 'l':
+        return ".-..";
+    case 'm':
+        return "--";
+    case 'n':
+        return "-.";
+    case 'o':
+        return "---";
+    case 'p':
+        return ".--.";
+    case 'q':
+        return "--.-";
+    case 'r':
+        return ".-.";
+    case 's':
+        return "...";
+    case 't':
+        return "-";
+    case 'u':
+        return "..-";
+    case 'v':
+        return "...-";
+    case 'w':
+        return ".--";
+    case 'x':
+        return "-..-";
+    case 'y':
+        return "-.--";
+    case 'z':
+        return "--..";
+    case '1':
+        return ".----";
+    case '2':
+        return "..---";
+    case '3':
+        return "...--";
+    case '4':
+        return "....-";
+    case '5':
+        return ".....";
+    case '6':
+        return "-....";
+    case '7':
+        return "--...";
+    case '8':
+        return "---..";
+    case '9':
+        return "----.";
+    case '0':
+        return "-----";
+    default:
+        return ".-.-.-.-";
+    }
+}
+
 //bool message_A[20] = {1,0,1,1,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0};
 bool message_B[20] = {1,1,0,1,0, 1,0,1,0,0, 0,0,0,0,0, 0,0,0,0,0};
 bool message_1[20] = {1,0,1,1,0, 1,1,0,1,1, 0,1,1,0,0, 0,0,0,0,0}; // no sensor data
 bool message_2[20] = {1,0,1,0,1, 1,0,1,1,0, 1,1,0,0,0, 0,0,0,00,}; // upload failed
 
-void loop() {
-  timeClient.update();
-  bool valid_sample = collect_sample();
-  bool upload_successful = true;
+struct Status {
+  bool time_client_ok;
+  bool collect_sample_ok;
+  bool upload_ok;
+};
+
+void probe(long epochTime, struct Status *status) {
+  status->time_client_ok = epochTime > 32000000;  // It's past 1970 :v)
+  status->collect_sample_ok = collect_sample();
+  status->upload_ok= true;
   if (batch_count >= BATCH_SIZE) {
         Serial.printf("batch_count %d limit %d uploading\n", batch_count, BATCH_SIZE);
-    upload_successful = upload_batch();
+    status->upload_ok = upload_batch();
   }
   if (batch_count >= BACKLOG_LIMIT) {
     Serial.printf("Exceeded backlog limit %d; resetting\n", BACKLOG_LIMIT);
@@ -281,23 +370,45 @@ void loop() {
     // in principle we could have a circular buffer, but ... meh.
     reset_batch();
   }
+}
 
-  // Version A ". -"
-  bool *blink_schedule = message_B;
-  if (!valid_sample) { blink_schedule = message_1; }
-  if (!upload_successful) { blink_schedule = message_2; }
-  // 20 periods of 200ms is 4 sec, hence the /4:
-  for (int sec=0; sec < (SAMPLE_PERIOD_SEC/4); sec++) {
-    for (int i=0; i<20; i++) {
-        bool blink_state = !blink_schedule[i];
-        //Serial.printf("blink %d\n", blink_state);
-        if (blink_state) {
-          digitalWrite(LED_BUILTIN, HIGH);
-        } else {
-          digitalWrite(LED_BUILTIN, LOW);
-        }
-        delay(200);
+void blink_letter(char letter) {
+  String morse = morseEncode(letter);
+  for (int i=0; i<morse.length(); i++) {
+    digitalWrite(LED_BUILTIN, LOW);  // Low turns on LED
+    delay(morse[i]=='-' ? 400 : 200);
+    Serial.print(morse[i]);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(200);
+  }
+  Serial.print(letter);
+  delay(600);
+}
+
+void loop() {
+  struct Status status;
+  long epochTime = timeClient.getEpochTime();
+  long nextProbeDue = epochTime + SAMPLE_PERIOD_SEC;
+  timeClient.update();
+
+  probe(epochTime, &status);
+
+  long timeRemaining = nextProbeDue - timeClient.getEpochTime();
+  while (timeRemaining > 0) {
+    Serial.print("Status code: ");
+    blink_letter('c'); // Current version code
+    // blink out error statusus in morse
+    if (!status.time_client_ok) {
+      blink_letter('1');
     }
-    digitalWrite(LED_BUILTIN, LOW);
+    if (!status.collect_sample_ok) {
+      blink_letter('2');
+    }
+    if (!status.upload_ok) {
+      blink_letter('3');
+    }
+    delay(2000);
+    timeRemaining = nextProbeDue - timeClient.getEpochTime();
+    Serial.printf("  ...next probe due %ds\n", (int) timeRemaining);
   }
 }
