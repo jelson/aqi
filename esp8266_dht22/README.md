@@ -5,13 +5,18 @@ This is a Lectrobox Cloud Weather device endpoint based on ESP8266 and DHT22.
 
 Each endpoint requires:
 
-* One [ESP8266 NodeMCU](https://smile.amazon.com/dp/B081CSJV2V?ref=ppx_yo2_dt_b_product_details&th=1)
+* Either
+  * One [ESP8266 NodeMCU module](https://smile.amazon.com/dp/B081CSJV2V)
+  * OR [ESP8266 NodeMCU Mini module](https://smile.amazon.com/dp/B08ZY7Q7TW)
+ (I didn't buy this particular unit, but it looks like the one I bought and
+ which has already vanished from Amazon.)
 * One [DHT22](https://smile.amazon.com/dp/B07WP4VZTH?psc=1&ref=ppx_yo2_dt_b_product_details). These include female jumpers, which is handy.
 * A USB power supply (50mW is typical, so almost anything should do) and micro-USB cable.
 
 ## Case
 
 Print the case .stl parts, vent-side down.
+If you used the Mini form factor module, print the "-small" files.
 
 Wire the DHT22 to 3V3, GND, and **D5** on the NodeMCU board.
 
