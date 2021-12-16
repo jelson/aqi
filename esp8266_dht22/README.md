@@ -20,11 +20,11 @@ If you used the Mini form factor module, print the "-small" files.
 
 Wire the DHT22 to 3V3, GND, and **D5** on the NodeMCU board.
 
-    ![DHT22 connections on NodeMCU board](https://github.com/jelson/aqi/tree/main/esp8266_dht22/images/connections.jpg?raw=true)
+    [DHT22 connections on NodeMCU board](images/connections.jpg?raw=true)
 
 Bundle up the wire and arrange the two boards as shown:
 
-    ![Packaging of boards into case](https://github.com/jelson/aqi/tree/main/esp8266_dht22/images/packaging.jpg?raw=true)
+    [Packaging of boards into case](https://github.com/jelson/aqi/tree/main/esp8266_dht22/images/packaging.jpg?raw=true)
 
 Snap the NodeMCU board into the pcb slots in one side of the case.
 
