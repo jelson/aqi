@@ -24,7 +24,7 @@ Wire the DHT22 to 3V3, GND, and **D5** on the NodeMCU board.
 
 Bundle up the wire and arrange the two boards as shown:
 
-![Packaging of boards into case](https://github.com/jelson/aqi/tree/main/esp8266_dht22/images/packaging.jpg?raw=true)
+![Packaging of boards into case](images/packaging.jpg?raw=true)
 
 Snap the NodeMCU board into the pcb slots in one side of the case.
 
