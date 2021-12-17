@@ -20,19 +20,25 @@
 #define DHTPIN  14  // https://randomnerdtutorials.com/esp8266-pinout-reference-gpios/
 #define DHTTYPE DHT22
 
+#define VERSION_STRING "4"
+
 #define TEST_MODE       0
 
 #if TEST_MODE
 
 #define SAMPLE_PERIOD_SEC (8)
-#define BATCH_SIZE        (10)
+#define BATCH_SIZE        (2)
 #define BACKLOG_LIMIT     (11)
 #define FAILURE_MASK      (0)
+#define RESET_WDT_PERIODS (20)
+#define METADATA_PERIODS  (4)
 
 #else
 #define SAMPLE_PERIOD_SEC (300)   // 5 min
 #define BATCH_SIZE        (1)    // upload once an hour
 #define BACKLOG_LIMIT     (11)  // Big batches break with OOM anyway :v(
+#define RESET_WDT_PERIODS (12)  // 1 hour.
+#define METADATA_PERIODS  (48)  // metadata every 4 hours
 #endif
 
 ESP8266WiFiMulti WiFiMulti;
@@ -62,9 +68,22 @@ void reset_batch();
 std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
 HTTPClient https;
 
+struct Status {
+  bool time_client_ok;
+  bool collect_sample_ok;
+  bool upload_ok;
+  long boot_time;
+  long next_metadata_due;
+} status;
+
+
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
 
+  status.time_client_ok = false;
+  status.collect_sample_ok = false;
+  status.upload_ok = false;
+  
   Serial.begin(115200);
   dht.begin();
   // Serial.setDebugOutput(true);
@@ -119,7 +138,7 @@ void learn_identity()
   
     int httpCode = https.GET();
     if (httpCode > 0) {
-      Serial.printf("[HTTP] POST... code: %d\n", httpCode);
+      Serial.printf("[HTTP] GET... code: %d\n", httpCode);
     
       if (httpCode == HTTP_CODE_OK) {
         identity = https.getString();
@@ -209,15 +228,36 @@ bool collect_sample() {
   return true;
 }
 
-
-bool upload_batch() {
-  bool success = false;
+void prepare_https_client() {
   if (client_needs_reset || !https.connected()) {
     Serial.printf("Connecting https\n");
     https.begin(*client, LECTROBOX_DATA_URL);
     metrics.https_begins += 1;
     client_needs_reset = false; // don't keep doing this forever
   }
+}
+
+void upload_metadata(long epochTime) {
+  prepare_https_client();
+  std::stringstream ss;
+  emitPreamble(&ss);
+  (ss)
+     << "    {\n"
+     << "      \"time\": " << epochTime << ",\n"
+     << "      \"boot_time_epoch_sec\": " << status.boot_time << ",\n"
+     << "      \"version\": " << VERSION_STRING << "\n"
+     << "    }\n";
+  emitPostamble(&ss);
+
+  Serial.print(ss.str().c_str());
+  
+  https.addHeader("Content-Type", "application/json");
+  int httpCode = https.POST(ss.str().c_str());
+  Serial.printf("metadata [HTTP] POST... code: %d\n", httpCode);
+}
+
+void upload_batch() {
+  prepare_https_client();
 /*
   if (!https.connected()) {
     Serial.printf("https connection failed; abandoning post\n");
@@ -246,10 +286,10 @@ bool upload_batch() {
 
     // file found at server
     if (httpCode == HTTP_CODE_OK) {
-      success = true;
+      status.upload_ok = true;
       reset_batch();
     } else {
-      success = false;
+      status.upload_ok = false;
       metrics.upload_failures += 1;
     }
   } else {
@@ -259,7 +299,6 @@ bool upload_batch() {
 
   https.end();
   // Leave the connection open for later.
-  return success;
 }
 
 String morseEncode(char x)
@@ -350,19 +389,17 @@ bool message_B[20] = {1,1,0,1,0, 1,0,1,0,0, 0,0,0,0,0, 0,0,0,0,0};
 bool message_1[20] = {1,0,1,1,0, 1,1,0,1,1, 0,1,1,0,0, 0,0,0,0,0}; // no sensor data
 bool message_2[20] = {1,0,1,0,1, 1,0,1,1,0, 1,1,0,0,0, 0,0,0,00,}; // upload failed
 
-struct Status {
-  bool time_client_ok;
-  bool collect_sample_ok;
-  bool upload_ok;
-};
+void probe(long epochTime) {
+  if (!status.time_client_ok && epochTime > 32000000) {
+    // It's past 1970 :v)
+    status.boot_time = epochTime;
+    status.time_client_ok = true;
+  }
 
-void probe(long epochTime, struct Status *status) {
-  status->time_client_ok = epochTime > 32000000;  // It's past 1970 :v)
-  status->collect_sample_ok = collect_sample();
-  status->upload_ok= true;
+  status.collect_sample_ok = collect_sample();
   if (batch_count >= BATCH_SIZE) {
         Serial.printf("batch_count %d limit %d uploading\n", batch_count, BATCH_SIZE);
-    status->upload_ok = upload_batch();
+    upload_batch();
   }
   if (batch_count >= BACKLOG_LIMIT) {
     Serial.printf("Exceeded backlog limit %d; resetting\n", BACKLOG_LIMIT);
@@ -385,30 +422,62 @@ void blink_letter(char letter) {
   delay(600);
 }
 
+void blink_string(String str) {
+  for (int i=0; i<str.length(); i++) {
+    blink_letter(str[i]);
+  }
+}
+
+int reset_watchdog_countdown = RESET_WDT_PERIODS;
+
+void deliver_metadata(long epochTime) {
+  if (status.next_metadata_due > 0) {
+    status.next_metadata_due -= 1;
+    return;    
+  }
+  if (!status.time_client_ok) {
+    return; // time is still bogus
+  }
+  
+  upload_metadata(epochTime);
+  status.next_metadata_due = METADATA_PERIODS;
+}
+
 void loop() {
-  struct Status status;
   long epochTime = timeClient.getEpochTime();
   long nextProbeDue = epochTime + SAMPLE_PERIOD_SEC;
   timeClient.update();
 
-  probe(epochTime, &status);
+  deliver_metadata(epochTime);  
+  
+  probe(epochTime);
 
   long timeRemaining = nextProbeDue - timeClient.getEpochTime();
   while (timeRemaining > 0) {
     Serial.print("Status code: ");
-    blink_letter('c'); // Current version code
+    blink_string(VERSION_STRING); // Current version code
     // blink out error statusus in morse
     if (!status.time_client_ok) {
-      blink_letter('1');
+      blink_letter('a');
     }
     if (!status.collect_sample_ok) {
-      blink_letter('2');
+      blink_letter('b');
     }
     if (!status.upload_ok) {
-      blink_letter('3');
+      blink_letter('c');
+    }
+    if (status.time_client_ok && status.collect_sample_ok && status.upload_ok) {
+      reset_watchdog_countdown = RESET_WDT_PERIODS;
     }
     delay(2000);
     timeRemaining = nextProbeDue - timeClient.getEpochTime();
-    Serial.printf("  ...next probe due %ds\n", (int) timeRemaining);
+    Serial.printf("  ...next probe due %ds; WDT %dp; meta %dp\n",
+      (int) timeRemaining, reset_watchdog_countdown, status.next_metadata_due);
+  }
+  
+  reset_watchdog_countdown -= 1;
+  if (reset_watchdog_countdown <= 0) {
+    Serial.print("Watchdog expired. Restarting.\n");
+    ESP.restart();
   }
 }
