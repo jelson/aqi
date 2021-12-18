@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 
-import os
-import asyncio
-import pathlib
 from tplinkcloud import TPLinkDeviceManager
+import asyncio
+import os
+import pathlib
+import sys
 import yaml
+
+# project libraries
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from common.mylogging import say
 
 class TPLinkController():
     def __init__(self, device_name):
@@ -17,7 +22,7 @@ class TPLinkController():
         self.config = config['devices'][device_name]
 
     async def async_set_plug_state(self, onoff):
-        print(self.config)
+        say(f"Trying to set {self.config['username']}, device {self.config['device_name']} to {onoff}")
         device_manager = TPLinkDeviceManager(self.config['username'], self.config['password'])
         device = await device_manager.find_device(self.config['device_name'])
         if not device:
