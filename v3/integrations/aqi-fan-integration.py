@@ -8,7 +8,6 @@
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 import dbus
-import nest_controller
 import os
 import psycopg2
 import sys
@@ -17,6 +16,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import server.pms5003db as pms5003db
 from common.mylogging import say
+import nest_controller
+import tplink_controller
 
 CONFIG = [
     {
@@ -34,6 +35,14 @@ CONFIG = [
         'off-thresh': 10,
         'averaging-sec': 60,
         'onoff-func': nest_controller.NestController('Jer Bedroom').fan_control,
+    },
+    {
+        'sensorname': 'gracie-bedroom',
+        'datatype': 'aqi2.5',
+        'on-thresh': 35,
+        'off-thresh': 10,
+        'averaging-sec': 60,
+        'onoff-func': tplink_controller.TPLinkController('Gracie Fan').set_plug_state,
     },
 ]
 
