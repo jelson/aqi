@@ -50,8 +50,9 @@ class SensorDataHandler():
 
     @cherrypy.expose
     def data(self):
-        debugstr = "{}:{}".format(
+        debugstr = "{}:{} {}".format(
             cherrypy.request.remote.ip,
+            cherrypy.request.remote.port,
             cherrypy.request.headers.get('User-Agent', 'no-user-agent')
         )
 
