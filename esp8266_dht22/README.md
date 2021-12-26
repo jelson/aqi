@@ -46,8 +46,8 @@ Note it's a 2.4GHz WiFi client; don't point it at your 5GHz network.
 
 * Load `esp8266_dht22/esp8266_dht22.ino` into Arduino IDE.
 
-(TODO I don't know how Arduino records the board info, so I'll write it down
-here. But it should be recorded as metadata so it's not a manual step!)
+Arduino doesn't actually record board info as metadata; you need to
+select your board from the Tools->Board menu. I used "NodeMCU 1.0 (ESP-12E module)".
 
 * [Add the esp8266 package to File->Preferences Additional Boards Manager URLs](https://create.arduino.cc/projecthub/harshmangukiya/how-to-program-esp8266-with-arduino-uno-efb05f)
 * Tools -> Board -> Board Manager; search; "ESP 8266 Boards (3.0.2)"

@@ -20,7 +20,7 @@
 #define DHTPIN  14  // https://randomnerdtutorials.com/esp8266-pinout-reference-gpios/
 #define DHTTYPE DHT22
 
-#define VERSION_STRING "4"
+#define VERSION_STRING "5"
 
 #define TEST_MODE       0
 
@@ -37,7 +37,7 @@
 #define SAMPLE_PERIOD_SEC (300)   // 5 min
 #define BATCH_SIZE        (1)    // upload once an hour
 #define BACKLOG_LIMIT     (11)  // Big batches break with OOM anyway :v(
-#define RESET_WDT_PERIODS (12)  // 1 hour.
+#define RESET_WDT_PERIODS (2)   // Doesn't cost much to reboot aggressively.
 #define METADATA_PERIODS  (48)  // metadata every 4 hours
 #endif
 
@@ -79,6 +79,7 @@ struct Status {
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);  // Turn on LED to signal we're still in setup.
 
   status.time_client_ok = false;
   status.collect_sample_ok = false;
@@ -294,6 +295,7 @@ void upload_batch() {
     }
   } else {
     Serial.printf("[HTTP] POST... failed, error: %s\n", https.errorToString(httpCode).c_str());
+    status.upload_ok = false;
     metrics.upload_failures += 1;
   }
 
@@ -398,7 +400,7 @@ void probe(long epochTime) {
 
   status.collect_sample_ok = collect_sample();
   if (batch_count >= BATCH_SIZE) {
-        Serial.printf("batch_count %d limit %d uploading\n", batch_count, BATCH_SIZE);
+    Serial.printf("batch_count %d limit %d uploading\n", batch_count, BATCH_SIZE);
     upload_batch();
   }
   if (batch_count >= BACKLOG_LIMIT) {
@@ -453,7 +455,7 @@ void loop() {
   probe(epochTime);
 
   long timeRemaining = nextProbeDue - timeClient.getEpochTime();
-  while (timeRemaining > 0) {
+  do {
     Serial.print("Status code: ");
     blink_string(VERSION_STRING); // Current version code
     // blink out error statusus in morse
@@ -473,7 +475,7 @@ void loop() {
     timeRemaining = nextProbeDue - timeClient.getEpochTime();
     Serial.printf("  ...next probe due %ds; WDT %dp; meta %dp\n",
       (int) timeRemaining, reset_watchdog_countdown, status.next_metadata_due);
-  }
+  } while  (timeRemaining > 0);
   
   reset_watchdog_countdown -= 1;
   if (reset_watchdog_countdown <= 0) {
