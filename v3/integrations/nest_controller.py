@@ -57,7 +57,8 @@ class NestController():
         if onoff:
             params = {
                 "timerMode": "ON",
-                "duration": "3600s",
+                "duration": "5400s", # 90 minutes
+
             }
         else:
             params = {
