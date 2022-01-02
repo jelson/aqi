@@ -27,7 +27,7 @@ class NestController():
         }
         resp = requests.post(self.config['oauth_url'], params=params)
         if not resp or resp.status_code != 200:
-            raise("Failed to refresh token")
+            raise Exception(f"Failed to refresh token: {resp}")
         token_info = resp.json()
 
         # Now, execute the request
