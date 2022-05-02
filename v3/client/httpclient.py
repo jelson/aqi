@@ -72,7 +72,11 @@ class DataClient:
         payload['auth'] = auth.digest().hex()
 
         try:
-            retval = self.session.post(self.url, json=payload)
+            retval = self.session.post(
+                self.url,
+                json=payload,
+                timeout=30,
+            )
         except Exception as e:
             say(f"failed to http post: {e}")
             return False
