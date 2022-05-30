@@ -34,10 +34,13 @@ def convert_aqi(pm):
 
 
 class PMS5003Database:
-    def __init__(self):
-        self.db = psycopg2.connect(database="airquality")
+    DBNAME = "airquality"
 
-        cursor = self.db.cursor()
+    def __init__(self):
+        self._db = None
+
+        db = self.get_raw_db()
+        cursor = db.cursor()
         # get the list of valid sensor ids
         cursor.execute("select name, id from sensordatav4_sensors")
         self.sensornames = {row[0]: row[1] for row in cursor.fetchall()}
@@ -47,10 +50,24 @@ class PMS5003Database:
         cursor.execute("select name, id from sensordatav4_types")
         self.datatypes = {row[0]: row[1] for row in cursor.fetchall()}
         say(f"data types: {self.datatypes}")
-        self.db.commit()
+        db.rollback()
 
     def get_raw_db(self):
-        return self.db
+        # Test the database to see if it works by executing a
+        # rollback. If not, close and reopen.
+        for i in range(2):
+            try:
+                if not self._db:
+                    say(f"Opening connection to database {self.DBNAME}")
+                    self._db = psycopg2.connect(database=self.DBNAME)
+                self._db.rollback()
+                return self._db
+            except psycopg2.InterfaceError as e:
+                say(f"Exception using db; closing and reopening: {e}")
+                self._db = None
+
+        say("Could not get working database - exiting")
+        sys.exit(1)
 
     def get_sensorid_by_name(self, sensorname):
         return self.sensornames.get(sensorname, None)
@@ -100,8 +117,8 @@ class PMS5003Database:
                     'value': val,
                 })
 
-        self.db.rollback()
-        cursor = self.db.cursor()
+        db = self.get_raw_db()
+        cursor = db.cursor()
         psycopg2.extras.execute_values(
             cursor,
             "insert into sensordatav4_tsdb (time, sensorid, datatype, value, received_at) values %s",
@@ -133,4 +150,4 @@ class PMS5003Database:
             list(latest.values()),
             template="(%(sensorid)s, %(datatype)s, %(time)s, %(value)s, now())",
         )
-        self.db.commit()
+        db.commit()

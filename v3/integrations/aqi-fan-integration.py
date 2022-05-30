@@ -78,6 +78,8 @@ class AQIChangeHandler:
             self.change_fan_state(c, True)
 
     def get_oneminute_average(self, c):
+        # Note, cursor() executes rollback to end a prior transaction.
+        # Otherwise, the value of now() never changes
         db = self.pmsdb.get_raw_db()
         cursor = db.cursor()
         cursor.execute(
@@ -93,8 +95,7 @@ class AQIChangeHandler:
                     c['averaging-sec'])
         )
         row = cursor.fetchone()
-        # end the transaction - otherwise, the value of now() never changes
-        db.commit()
+        db.rollback()
         return(row[0])
 
     def change_fan_state(self, c, onoff):
