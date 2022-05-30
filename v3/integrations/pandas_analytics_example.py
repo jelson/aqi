@@ -20,7 +20,7 @@ def read_as_dataframe(db, sensorname, datatype, time_start=None, time_end=None):
          select 
             time, value
          from
-            sensordatav4
+            sensordatav4_tsdb
          where
             sensorid=%s and datatype=%s
            """
@@ -42,7 +42,7 @@ def read_as_dataframe(db, sensorname, datatype, time_start=None, time_end=None):
 db = pms5003db.PMS5003Database()
 df = read_as_dataframe(
     db, "dave-shed", "pressure_hPa",
-    #time_start=datetime.datetime.now() - datetime.timedelta(days=1),
+    time_start=datetime.datetime.now() - datetime.timedelta(days=1),
 )
 df = df.loc[df['value'] >= 900]
 print(df)
