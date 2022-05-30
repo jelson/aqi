@@ -30,7 +30,6 @@ class SensorDataHandler():
 
     @cherrypy.expose
     def mac_lookup(self, macaddr):
-        say("got lookup request for " + str(macaddr))
         db = self.db.get_raw_db()
         cursor = db.cursor()
         cursor.execute(
@@ -44,8 +43,10 @@ class SensorDataHandler():
             cherrypy.response.status = 401
             sensorname = None
 
-        self.lookup_log.write(f"<p>{datetime.datetime.now()}: Got lookup request for mac {macaddr}, returned {sensorname}\n")
+        msg = f"Got lookup request for mac {macaddr}, returned {sensorname}"
+        self.lookup_log.write(f"<p>{datetime.datetime.now()}: {msg}\n")
         self.lookup_log.flush()
+        say(msg)
         return sensorname
 
     @cherrypy.expose
