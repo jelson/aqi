@@ -36,7 +36,7 @@ class SensorDataHandler():
             "select name from sensordatav4_sensors where macaddr=%s",
             (macaddr,))
         result = cursor.fetchone()
-        db.commit()
+        db.rollback()
         if result:
             sensorname = result[0]
         else:
