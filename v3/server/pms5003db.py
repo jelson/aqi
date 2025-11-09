@@ -9,6 +9,7 @@ import aqi
 import os
 import sys
 import psycopg2
+import time
 
 # project libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -75,48 +76,7 @@ class PMS5003Database:
     def get_datatype_by_name(self, datatype):
         return self.datatypes.get(datatype, None)
 
-    # sensorid is for backcompat and will go away soon
-    def insert_batch(self, sensorname, sensorid, recordlist, debugstr=None):
-        if not sensorid:
-            sensorid = self.get_sensorid_by_name(sensorname)
-        if not sensorid:
-            raise Exception(f"unknown sensor name {sensorname}")
-        if not recordlist:
-            raise Exception(f"{sensorname}: empty record list")
-
-        # write log message
-        logmsg = "sensor {} (id {}): writing {} records from {} to {}".format(
-            sensorname, sensorid, len(recordlist),
-            recordlist[0]['time'], recordlist[-1]['time'])
-        if debugstr:
-            logmsg = debugstr + ": " + logmsg
-        say(logmsg)
-
-        # generate a list of rows to be inserted into the database
-        # from the json record sent by the client
-        insertion_list = []
-        for record in recordlist:
-            time = record.pop('time')
-            # if this record has a PM2.5 record, also compute the EPA
-            # AQI2.5 value for it
-            if 'pm2.5' in record:
-                record['aqi2.5'] = convert_aqi(record['pm2.5'])
-
-            # for each data type in this record, look up the datatype
-            # id associated with that datatype name and prepare a
-            # database row with that data and the record's time
-            for key, val in record.items():
-                datatype = self.get_datatype_by_name(key)
-                if not datatype:
-                    say(f"WARNING: sensor {sensorname} sent unknown field '{key}'")
-                    continue
-                insertion_list.append({
-                    'time': time,
-                    'sensorid': sensorid,
-                    'datatype': datatype,
-                    'value': val,
-                })
-
+    def _insert_expanded(self, insertion_list):
         db = self.get_raw_db()
         cursor = db.cursor()
         psycopg2.extras.execute_values(
@@ -151,3 +111,64 @@ class PMS5003Database:
             template="(%(sensorid)s, %(datatype)s, %(time)s, %(value)s, now())",
         )
         db.commit()
+
+    # sensorid is for backcompat and will go away soon
+    MAX_DB_INSERTS_PER_BATCH = 2000
+    MAX_INSERT_TIME_SEC = 20
+
+    def insert_batch(self, sensorname, sensorid, recordlist, debugstr=None):
+        if not sensorid:
+            sensorid = self.get_sensorid_by_name(sensorname)
+        if not sensorid:
+            raise Exception(f"unknown sensor name {sensorname}")
+        if not recordlist:
+            raise Exception(f"{sensorname}: empty record list")
+
+        # write log message
+        logmsg = "sensor {} (id {}): writing {} records from {} to {}".format(
+            sensorname, sensorid, len(recordlist),
+            recordlist[0]['time'], recordlist[-1]['time'])
+        if debugstr:
+            logmsg = debugstr + ": " + logmsg
+        say(logmsg)
+
+        # generate a list of rows to be inserted into the database
+        # from the json record sent by the client
+        insertion_list = []
+        recnum = 0
+        starttime = time.time()
+        for record in recordlist:
+            recnum += 1
+            rectime = record.pop('time')
+            # if this record has a PM2.5 record, also compute the EPA
+            # AQI2.5 value for it
+            if 'pm2.5' in record:
+                record['aqi2.5'] = convert_aqi(record['pm2.5'])
+
+            # for each data type in this record, look up the datatype
+            # id associated with that datatype name and prepare a
+            # database row with that data and the record's time
+            for key, val in record.items():
+                datatype = self.get_datatype_by_name(key)
+                if not datatype:
+                    say(f"WARNING: sensor {sensorname} sent unknown field '{key}'")
+                    continue
+                insertion_list.append({
+                    'time': rectime,
+                    'sensorid': sensorid,
+                    'datatype': datatype,
+                    'value': val,
+                })
+
+            if len(insertion_list) > self.MAX_DB_INSERTS_PER_BATCH:
+                self._insert_expanded(insertion_list)
+                say(f"sensorid {sensorid}: batch write up to record {recnum}")
+                insertion_list = []
+
+                runtime = time.time() - starttime
+
+                if runtime > self.MAX_INSERT_TIME_SEC:
+                    say(f"sensorid {sensorid}: dropping the remainder; too many records")
+                    return
+
+        self._insert_expanded(insertion_list)
