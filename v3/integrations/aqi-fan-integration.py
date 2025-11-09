@@ -23,16 +23,16 @@ CONFIG = [
     {
         'sensorname': 'jer-office',
         'datatype': 'aqi2.5',
-        'on-thresh': 25,
-        'off-thresh': 5,
+        'on-thresh': 40,
+        'off-thresh': 15,
         'averaging-sec': 60,
         'onoff-func': nest_controller.NestController('Jer Entryway').fan_control,
     },
     {
         'sensorname': 'jer-bedroom',
         'datatype': 'aqi2.5',
-        'on-thresh': 25,
-        'off-thresh': 5,
+        'on-thresh': 40,
+        'off-thresh': 15,
         'averaging-sec': 60,
         'onoff-func': nest_controller.NestController('Jer Bedroom').fan_control,
     },
@@ -66,16 +66,25 @@ class AQIChangeHandler:
 
     def maybe_on_off(self, c):
         aqi = round(self.get_oneminute_average(c), 2)
-        say(f"sensor {c['sensorname']} aqi now {aqi}")
+        msg = f"sensor {c['sensorname']} aqi now {aqi}"
 
         fan_is_on = c.get('fan-is-on', False)
+        msg += f"; fan_on={fan_is_on}"
 
-        if fan_is_on and aqi <= c['off-thresh']:
-            say(f'{c["sensorname"]} {aqi} under off-threshold {c["off-thresh"]}')
-            self.change_fan_state(c, False)
-        elif (not fan_is_on) and aqi >= c['on-thresh']:
-            say(f'{c["sensorname"]} {aqi} over on-threshold {c["on-thresh"]}')
-            self.change_fan_state(c, True)
+        if fan_is_on:
+            if aqi <= c['off-thresh']:
+                msg += f'; tripped: under off-threshold {c["off-thresh"]}'
+                self.change_fan_state(c, False)
+            else:
+                msg += '; staying on'
+        else:
+            if aqi >= c['on-thresh']:
+                msg += f'; tripped: over on-threshold {c["on-thresh"]}'
+                self.change_fan_state(c, True)
+            else:
+                msg += '; staying off'
+
+        say(msg)
 
     def get_oneminute_average(self, c):
         # Note, cursor() executes rollback to end a prior transaction.
