@@ -126,19 +126,23 @@ class GoogleSmartHomeIntegration:
         Get the trailing average AQI for a sensor over the last N seconds.
         Returns None if no data available or on error.
         """
+        say(f"get_trailing_average: START for sensor={sensorname}")
         try:
-            db = self.pmsdb.get_raw_db()
-            cursor = db.cursor()
-
             sensorid = self.pmsdb.get_sensorid_by_name(sensorname)
             if not sensorid:
                 say(f"Unknown sensor name: {sensorname}")
                 return None
+            say(f"get_trailing_average: sensorid={sensorid}")
 
             datatype = self.pmsdb.get_datatype_by_name('aqi2.5')
             if not datatype:
                 say("ERROR: 'aqi2.5' datatype not found in database")
                 return None
+            say(f"get_trailing_average: datatype={datatype}")
+
+            db = self.pmsdb.get_raw_db()
+            cursor = db.cursor()
+            say(f"get_trailing_average: executing query...")
 
             cursor.execute(
                 """
@@ -152,15 +156,19 @@ class GoogleSmartHomeIntegration:
                 (sensorid, datatype, averaging_sec)
             )
 
+            say(f"get_trailing_average: fetching result...")
             row = cursor.fetchone()
             db.commit()
 
             avg_value = row[0]
+            say(f"get_trailing_average: avg_value={avg_value}")
 
             if avg_value is None:
                 return None
 
-            return round(avg_value)
+            result = round(avg_value)
+            say(f"get_trailing_average: COMPLETE, returning {result}")
+            return result
         except Exception as e:
             say(f"Database error getting AQI for {sensorname}: {e}")
             return None
@@ -617,6 +625,11 @@ def main():
         help="Path to config file (YAML format)",
         required=True
     )
+    parser.add_argument(
+        "--test-query",
+        metavar="SENSOR_NAME",
+        help="Test mode: query sensor and exit (e.g., 'jer-bedroom')"
+    )
     args = parser.parse_args()
 
     # Load config
@@ -638,6 +651,19 @@ def main():
     except Exception as e:
         print(f"ERROR: Failed to load config: {e}")
         sys.exit(1)
+
+    # Test mode: query a sensor and exit
+    if args.test_query:
+        say(f"TEST MODE: Querying sensor '{args.test_query}'")
+        integration = GoogleSmartHomeIntegration(config)
+        aqi = integration.get_trailing_average(args.test_query)
+        if aqi is None:
+            print(f"ERROR: No data available for sensor '{args.test_query}'")
+            print(f"Available sensors: {list(integration.room_mapping.values())}")
+            sys.exit(1)
+        else:
+            print(f"SUCCESS: {args.test_query} AQI = {aqi}")
+            sys.exit(0)
 
     # Configure CherryPy
     cherrypy.config.update({
