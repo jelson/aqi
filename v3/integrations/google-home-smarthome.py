@@ -270,7 +270,7 @@ class GoogleSmartHomeIntegration:
             raise cherrypy.HTTPRedirect(redirect_url)
 
     @cherrypy.expose
-    def token(self):
+    def token(self, **kwargs):
         """
         OAuth token exchange endpoint.
 
@@ -654,7 +654,7 @@ def main():
     })
 
     say("Starting Google Smart Home integration service...")
-    cherrypy.quickstart(GoogleSmartHomeIntegration(config))
+    cherrypy.quickstart(GoogleSmartHomeIntegration(config), '/')
 
 
 if __name__ == '__main__':
