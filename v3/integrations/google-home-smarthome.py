@@ -200,6 +200,9 @@ class GoogleSmartHomeIntegration:
         GET: Show login form
         POST: Process login and redirect with auth code
         """
+        # Debug logging
+        say(f"auth() called: method={cherrypy.request.method}, client_id={client_id}, redirect_uri={redirect_uri}, state={state}, response_type={response_type}")
+
         # Verify required parameters
         if not client_id or not redirect_uri or not state or not response_type:
             raise cherrypy.HTTPError(400, "Missing required OAuth parameters")
