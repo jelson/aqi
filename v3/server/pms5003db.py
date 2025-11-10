@@ -87,7 +87,6 @@ class PMS5003Database:
                 (sensorid,)
             )
             datatypes = [row[0] for row in cursor.fetchall()]
-            self.db.commit()
             return datatypes
         except Exception as e:
             say(f"Error getting datatypes for {sensorname}: {e}")
