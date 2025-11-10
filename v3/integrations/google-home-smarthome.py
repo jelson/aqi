@@ -68,11 +68,15 @@ class GoogleSmartHomeIntegration:
             raise ValueError("room_mapping must contain at least one room")
         self.room_mapping = room_mapping
 
-        # In-memory token storage (for single-user, personal use)
+        # Token storage - persisted to /tmp for restart survival
         # For production with multiple users, use a database
+        self.token_file = '/tmp/google-smarthome-tokens.json'
         self.auth_codes = {}  # code -> {'username': str, 'expires': time}
         self.tokens = {}  # access_token -> {'username': str, 'refresh_token': str, 'expires': time}
         self.refresh_tokens = {}  # refresh_token -> {'username': str, 'access_token': str}
+
+        # Load persisted tokens if available
+        self._load_tokens()
 
         # Simple username/password (for personal use) - REQUIRED
         # In production, integrate with your actual user system
@@ -98,6 +102,31 @@ class GoogleSmartHomeIntegration:
             raise ValueError(
                 f"Login template not found: {template_path}"
             )
+
+    def _load_tokens(self):
+        """Load tokens from persistent storage."""
+        try:
+            if os.path.exists(self.token_file):
+                with open(self.token_file, 'r') as f:
+                    data = json.load(f)
+                    self.tokens = data.get('tokens', {})
+                    self.refresh_tokens = data.get('refresh_tokens', {})
+                    say(f"Loaded {len(self.tokens)} access tokens and {len(self.refresh_tokens)} refresh tokens from {self.token_file}")
+        except Exception as e:
+            say(f"Warning: Failed to load tokens from {self.token_file}: {e}")
+
+    def _save_tokens(self):
+        """Save tokens to persistent storage."""
+        try:
+            data = {
+                'tokens': self.tokens,
+                'refresh_tokens': self.refresh_tokens
+            }
+            with open(self.token_file, 'w') as f:
+                json.dump(data, f)
+            say(f"Saved {len(self.tokens)} access tokens and {len(self.refresh_tokens)} refresh tokens to {self.token_file}")
+        except Exception as e:
+            say(f"Warning: Failed to save tokens to {self.token_file}: {e}")
 
     def verify_password(self, username, password):
         """Verify username and password."""
@@ -194,6 +223,8 @@ class GoogleSmartHomeIntegration:
             del self.tokens[token]
         if expired:
             say(f"Cleaned up {len(expired)} expired access tokens")
+            # Persist changes to disk
+            self._save_tokens()
 
     # ========================================================================
     # OAuth 2.0 Endpoints
@@ -361,6 +392,9 @@ class GoogleSmartHomeIntegration:
             # Clean up auth code
             del self.auth_codes[code]
 
+            # Persist tokens to disk
+            self._save_tokens()
+
             say("token() returning successful auth_code exchange")
             return {
                 "token_type": "Bearer",
@@ -398,6 +432,9 @@ class GoogleSmartHomeIntegration:
 
             # Update refresh token mapping to point to new access token
             self.refresh_tokens[refresh_token]['access_token'] = access_token
+
+            # Persist tokens to disk
+            self._save_tokens()
 
             say("token() returning successful refresh_token exchange")
             return {
