@@ -218,18 +218,18 @@ class GoogleSmartHomeIntegration:
 
         if cherrypy.request.method == 'GET':
             # Show login form with proper HTML escaping
-            escaped_client_id = html.escape(client_id)
-            escaped_redirect_uri = html.escape(redirect_uri)
-            escaped_state = html.escape(state)
-            escaped_response_type = html.escape(response_type)
+            substitutions = {
+                '$CLIENT_ID': html.escape(client_id),
+                '$REDIRECT_URI': html.escape(redirect_uri),
+                '$STATE': html.escape(state),
+                '$RESPONSE_TYPE': html.escape(response_type)
+            }
 
-            # Substitute values into template
-            return self.login_html_template.format(
-                client_id=escaped_client_id,
-                redirect_uri=escaped_redirect_uri,
-                state=escaped_state,
-                response_type=escaped_response_type
-            )
+            # Substitute values into template using simple string replacement
+            html_output = self.login_html_template
+            for var_name, value in substitutions.items():
+                html_output = html_output.replace(var_name, value)
+            return html_output
         else:
             # POST: Process login
             if not username or not password:
@@ -369,7 +369,7 @@ class GoogleSmartHomeIntegration:
     @cherrypy.expose
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
-    def smarthome(self):
+    def serve(self):
         """
         Main Smart Home fulfillment endpoint.
 
