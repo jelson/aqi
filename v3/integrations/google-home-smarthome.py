@@ -642,7 +642,6 @@ def main():
 
     # Configure CherryPy
     cherrypy.config.update({
-        'environment': 'development',
         'server.socket_host': config.get('listen-host', '127.0.0.1'),
         'server.socket_port': config.get('listen-port', 15001),
         'server.socket_timeout': 30,
