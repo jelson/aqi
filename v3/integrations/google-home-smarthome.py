@@ -291,12 +291,16 @@ class GoogleSmartHomeIntegration:
         else:
             data = cherrypy.request.params
 
-        client_id = data.get('client_id')
-        client_secret = data.get('client_secret')
-        grant_type = data.get('grant_type')
+        client_id = self._extract_param(data.get('client_id'))
+        client_secret = self._extract_param(data.get('client_secret'))
+        grant_type = self._extract_param(data.get('grant_type'))
+
+        # Debug logging
+        say(f"token() called: grant_type={grant_type}, client_id={client_id}, client_secret={'***' if client_secret else None}")
 
         # Verify client credentials
         if client_id != self.client_id or client_secret != self.client_secret:
+            say(f"Invalid client credentials: client_id match={client_id == self.client_id}, client_secret match={client_secret == self.client_secret}")
             cherrypy.response.status = 401
             return {"error": "invalid_client"}
 
