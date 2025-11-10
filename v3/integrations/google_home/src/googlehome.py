@@ -94,47 +94,6 @@ class GoogleSmartHomeIntegration:
             return device_id[len(prefix):]
         return None
 
-    def get_trailing_average(self, sensorname, datatype_name,
-                             averaging_sec=60):
-        """
-        Get the trailing average for a sensor data type over last N seconds.
-
-        Args:
-            sensorname: Name of the sensor
-            datatype_name: Name of data type (e.g., 'aqi2.5', 'pm2.5')
-            averaging_sec: Number of seconds to average over (default: 60)
-
-        Returns:
-            Averaged value, or None if no data available or on error
-        """
-        try:
-            sensorid = self.pmsdb.get_sensorid_by_name(sensorname)
-            datatype = self.pmsdb.get_datatype_by_name(datatype_name)
-            if not sensorid or not datatype:
-                say(f"get_trailing_average: Unknown sensor={sensorname} "
-                    f"or datatype={datatype_name}")
-                return None
-
-            cursor = self.pmsdb.get_raw_db().cursor()
-            cursor.execute(
-                """
-                SELECT avg("value")
-                FROM sensordatav4_tsdb
-                WHERE
-                    sensorid=%s AND
-                    datatype=%s AND
-                    time > now() - make_interval(secs => %s)
-                """,
-                (sensorid, datatype, averaging_sec)
-            )
-            avg_value = cursor.fetchone()[0]
-            say(f"get_trailing_average: returning {avg_value}")
-            return avg_value
-        except Exception as e:
-            say(f"Database error getting {datatype_name} for "
-                f"{sensorname}: {e}")
-            return None
-
     # ========================================================================
     # Smart Home Intents
     # ========================================================================
@@ -306,36 +265,29 @@ class GoogleSmartHomeIntegration:
             if not sensor_name:
                 continue
 
-            # Get available data types for this sensor
-            available_datatypes = self.pmsdb.get_datatypes_for_sensor(sensor_name)
-            say(f"Available datatypes for {sensor_name}: {available_datatypes}")
+            # Get all latest values for this sensor (single query)
+            latest_values = self.pmsdb.get_latest_values_for_sensor(sensor_name)
+            say(f"Latest values for {sensor_name}: {latest_values}")
 
-            # Query all available data types that we support
+            # Build sensor states for supported datatypes
             sensor_states = []
-            has_any_data = False
-
-            for datatype_name in available_datatypes:
+            for datatype_name, value in latest_values.items():
                 # Check if we have a mapping for this datatype
                 if datatype_name not in self.DATATYPE_TO_GOOGLE:
                     continue
 
                 google_datatype = self.DATATYPE_TO_GOOGLE[datatype_name]
 
-                # Get the current value
-                value = self.get_trailing_average(sensor_name, datatype_name)
+                # Round if it's an integer-like value
+                if datatype_name in ['aqi2.5', 'pm1.0', 'pm2.5', 'pm10.0']:
+                    value = round(value)
 
-                if value is not None:
-                    has_any_data = True
-                    # Round if it's an integer-like value
-                    if datatype_name in ['aqi2.5', 'pm1.0', 'pm2.5', 'pm10.0']:
-                        value = round(value)
+                sensor_states.append({
+                    "name": google_datatype,
+                    "rawValue": value
+                })
 
-                    sensor_states.append({
-                        "name": google_datatype,
-                        "rawValue": value
-                    })
-
-            if not has_any_data:
+            if not sensor_states:
                 # Sensor offline or no recent data
                 device_states[device_id] = {
                     "online": False,

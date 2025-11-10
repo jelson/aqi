@@ -93,6 +93,42 @@ class PMS5003Database:
             self.db.rollback()
             return []
 
+    def get_latest_values_for_sensor(self, sensorname, max_age_sec=60):
+        """
+        Get latest values for all datatypes for a sensor.
+
+        Args:
+            sensorname: Name of the sensor
+            max_age_sec: Maximum age in seconds (default: 60)
+
+        Returns:
+            Dict mapping datatype names to values,
+            or empty dict if sensor not found or on error
+        """
+        sensorid = self.get_sensorid_by_name(sensorname)
+        if not sensorid:
+            say(f"Unknown sensor name: {sensorname}")
+            return {}
+
+        try:
+            cursor = self.db.cursor()
+            cursor.execute(
+                """
+                SELECT t.name, l.value
+                FROM sensordatav4_latest l
+                JOIN sensordatav4_types t ON l.datatype = t.id
+                WHERE l.sensorid = %s
+                  AND l.time > now() - make_interval(secs => %s)
+                """,
+                (sensorid, max_age_sec)
+            )
+            values = {row[0]: row[1] for row in cursor.fetchall()}
+            return values
+        except Exception as e:
+            say(f"Error getting latest values for {sensorname}: {e}")
+            self.db.rollback()
+            return {}
+
     # sensorid is for backcompat and will go away soon
     def insert_batch(self, sensorname, sensorid, recordlist, debugstr=None):
         if not sensorid:
