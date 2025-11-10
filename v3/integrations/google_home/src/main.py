@@ -57,17 +57,32 @@ def main():
     # Test mode: query a sensor and exit
     if args.test_query:
         say(f"TEST MODE: Querying sensor '{args.test_query}'")
-        integration = GoogleSmartHomeIntegration(config)
-        aqi = integration.get_trailing_average(args.test_query)
-        if aqi is None:
-            print(f"ERROR: No data available for sensor "
-                  f"'{args.test_query}'")
-            print(f"Available sensors: "
-                  f"{list(integration.room_mapping.values())}")
-            sys.exit(1)
-        else:
-            print(f"SUCCESS: {args.test_query} AQI = {aqi}")
+        googlehome = GoogleSmartHomeIntegration(config)
+
+        # Build a QUERY request for this sensor
+        device_id = googlehome.sensor_to_device_id(args.test_query)
+        query_input = {
+            'payload': {
+                'devices': [
+                    {'id': device_id}
+                ]
+            }
+        }
+
+        # Call the real QUERY handler
+        response = googlehome.handle_query('test-request-id', query_input)
+
+        # Display the result
+        import json
+        print(json.dumps(response, indent=2))
+
+        # Check if sensor was found and online
+        device_state = response.get('payload', {}).get('devices', {}).get(device_id, {})
+        if device_state.get('online'):
             sys.exit(0)
+        else:
+            print(f"\nERROR: Sensor '{args.test_query}' is offline or unavailable")
+            sys.exit(1)
 
     # Configure CherryPy
     cherrypy.config.update({
