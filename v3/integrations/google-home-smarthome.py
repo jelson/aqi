@@ -57,14 +57,15 @@ class GoogleSmartHomeIntegration:
         # For security, we validate redirects against this
         self.redirect_uri = config.get('oauth_redirect_uri', 'https://oauth-redirect.googleusercontent.com/r/')
 
-        # Map friendly names to sensor names
-        room_mapping = config.get('room_mapping', {
-            'bedroom': 'jer-bedroom',
-            'office': 'jer-office',
-        })
+        # Map friendly names to sensor names - REQUIRED
+        room_mapping = config.get('room_mapping')
+        if not room_mapping:
+            raise ValueError("room_mapping is required in config file")
         # Validate room_mapping is a dictionary
         if not isinstance(room_mapping, dict):
             raise ValueError("room_mapping in config must be a dictionary")
+        if len(room_mapping) == 0:
+            raise ValueError("room_mapping must contain at least one room")
         self.room_mapping = room_mapping
 
         # In-memory token storage (for single-user, personal use)
@@ -73,12 +74,30 @@ class GoogleSmartHomeIntegration:
         self.tokens = {}  # access_token -> {'username': str, 'refresh_token': str, 'expires': time}
         self.refresh_tokens = {}  # refresh_token -> {'username': str, 'access_token': str}
 
-        # Simple username/password (for personal use)
+        # Simple username/password (for personal use) - REQUIRED
         # In production, integrate with your actual user system
-        self.username = config.get('username', 'admin')
+        self.username = config.get('username')
+        if not self.username or not str(self.username).strip():
+            raise ValueError("username is required in config file")
+        password = config.get('password')
+        if not password or not str(password).strip():
+            raise ValueError("password is required in config file")
         self.password_hash = hashlib.sha256(
-            config.get('password', 'changeme').encode()
+            str(password).encode()
         ).hexdigest()
+
+        # Load HTML template for OAuth login page
+        template_path = os.path.join(
+            os.path.dirname(__file__),
+            'google-home-smarthome-login.html'
+        )
+        try:
+            with open(template_path, 'r') as f:
+                self.login_html_template = f.read()
+        except FileNotFoundError:
+            raise ValueError(
+                f"Login template not found: {template_path}"
+            )
 
     def verify_password(self, username, password):
         """Verify username and password."""
@@ -204,29 +223,13 @@ class GoogleSmartHomeIntegration:
             escaped_state = html.escape(state)
             escaped_response_type = html.escape(response_type)
 
-            return f"""
-            <html>
-            <head><title>Link AQI Sensors to Google Home</title></head>
-            <body>
-                <h1>Link AQI Sensors to Google Home</h1>
-                <form method="POST">
-                    <input type="hidden" name="client_id" value="{escaped_client_id}">
-                    <input type="hidden" name="redirect_uri" value="{escaped_redirect_uri}">
-                    <input type="hidden" name="state" value="{escaped_state}">
-                    <input type="hidden" name="response_type" value="{escaped_response_type}">
-                    <p>
-                        <label>Username: <input type="text" name="username" required></label>
-                    </p>
-                    <p>
-                        <label>Password: <input type="password" name="password" required></label>
-                    </p>
-                    <p>
-                        <button type="submit">Authorize</button>
-                    </p>
-                </form>
-            </body>
-            </html>
-            """
+            # Substitute values into template
+            return self.login_html_template.format(
+                client_id=escaped_client_id,
+                redirect_uri=escaped_redirect_uri,
+                state=escaped_state,
+                response_type=escaped_response_type
+            )
         else:
             # POST: Process login
             if not username or not password:
