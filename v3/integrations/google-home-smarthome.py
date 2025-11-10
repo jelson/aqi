@@ -191,6 +191,10 @@ class GoogleSmartHomeIntegration:
     # OAuth 2.0 Endpoints
     # ========================================================================
 
+    def _extract_param(self, value):
+        """Extract first value if parameter is a list (happens with duplicate params)."""
+        return value[0] if isinstance(value, list) and value else value
+
     @cherrypy.expose
     def auth(self, client_id=None, redirect_uri=None, state=None,
              response_type=None, username=None, password=None):
@@ -200,6 +204,15 @@ class GoogleSmartHomeIntegration:
         GET: Show login form
         POST: Process login and redirect with auth code
         """
+        # CherryPy may pass parameters as lists if they appear multiple times
+        # (e.g., in both query string and POST body). Extract first value.
+        client_id = self._extract_param(client_id)
+        redirect_uri = self._extract_param(redirect_uri)
+        state = self._extract_param(state)
+        response_type = self._extract_param(response_type)
+        username = self._extract_param(username)
+        password = self._extract_param(password)
+
         # Debug logging
         say(f"auth() called: method={cherrypy.request.method}, client_id={client_id}, redirect_uri={redirect_uri}, state={state}, response_type={response_type}")
 
