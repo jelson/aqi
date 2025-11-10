@@ -58,6 +58,42 @@ class PMS5003Database:
     def get_datatype_by_name(self, datatype):
         return self.datatypes.get(datatype, None)
 
+    def get_datatypes_for_sensor(self, sensorname):
+        """
+        Get list of available datatype names for a sensor.
+
+        Args:
+            sensorname: Name of the sensor
+
+        Returns:
+            List of datatype names (strings) available for this sensor,
+            or empty list if sensor not found or on error
+        """
+        sensorid = self.get_sensorid_by_name(sensorname)
+        if not sensorid:
+            say(f"Unknown sensor name: {sensorname}")
+            return []
+
+        try:
+            cursor = self.db.cursor()
+            cursor.execute(
+                """
+                SELECT DISTINCT t.name
+                FROM sensordatav4_latest l
+                JOIN sensordatav4_types t ON l.datatype = t.id
+                WHERE l.sensorid = %s
+                ORDER BY t.name
+                """,
+                (sensorid,)
+            )
+            datatypes = [row[0] for row in cursor.fetchall()]
+            self.db.commit()
+            return datatypes
+        except Exception as e:
+            say(f"Error getting datatypes for {sensorname}: {e}")
+            self.db.rollback()
+            return []
+
     # sensorid is for backcompat and will go away soon
     def insert_batch(self, sensorname, sensorid, recordlist, debugstr=None):
         if not sensorid:

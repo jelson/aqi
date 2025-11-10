@@ -71,18 +71,46 @@ class GoogleSmartHomeIntegration:
     # Sensor Data Access
     # ========================================================================
 
-    def get_trailing_average(self, sensorname, averaging_sec=60):
+    # Mapping from database datatype names to Google Home sensor names
+    DATATYPE_TO_GOOGLE = {
+        'aqi2.5': 'AirQuality',
+        'pm1.0': 'PM1',
+        'pm2.5': 'PM2.5',
+        'pm10.0': 'PM10',
+        'temperature': 'AmbientTemperature',
+        'humidity': 'AmbientHumidity'
+    }
+
+    def get_available_datatypes(self, sensorname):
         """
-        Get the trailing average AQI for a sensor over the last N seconds.
+        Get list of available datatypes for a sensor.
 
         Args:
             sensorname: Name of the sensor
+
+        Returns:
+            List of datatype names available for this sensor,
+            or empty list on error
+        """
+        datatypes = self.pmsdb.get_datatypes_for_sensor(sensorname)
+        say(f"Available datatypes for {sensorname}: {datatypes}")
+        return datatypes
+
+    def get_trailing_average(self, sensorname, datatype_name,
+                             averaging_sec=60):
+        """
+        Get the trailing average for a sensor data type over last N seconds.
+
+        Args:
+            sensorname: Name of the sensor
+            datatype_name: Name of data type (e.g., 'aqi2.5', 'pm2.5')
             averaging_sec: Number of seconds to average over (default: 60)
 
         Returns:
-            Rounded AQI value, or None if no data available or on error
+            Averaged value, or None if no data available or on error
         """
-        say(f"get_trailing_average: START for sensor={sensorname}")
+        say(f"get_trailing_average: START for sensor={sensorname}, "
+            f"datatype={datatype_name}")
         try:
             sensorid = self.pmsdb.get_sensorid_by_name(sensorname)
             if not sensorid:
@@ -90,9 +118,10 @@ class GoogleSmartHomeIntegration:
                 return None
             say(f"get_trailing_average: sensorid={sensorid}")
 
-            datatype = self.pmsdb.get_datatype_by_name('aqi2.5')
+            datatype = self.pmsdb.get_datatype_by_name(datatype_name)
             if not datatype:
-                say("ERROR: 'aqi2.5' datatype not found in database")
+                say(f"ERROR: '{datatype_name}' datatype not found "
+                    f"in database")
                 return None
             say(f"get_trailing_average: datatype={datatype}")
 
@@ -122,11 +151,12 @@ class GoogleSmartHomeIntegration:
             if avg_value is None:
                 return None
 
-            result = round(avg_value)
+            result = avg_value
             say(f"get_trailing_average: COMPLETE, returning {result}")
             return result
         except Exception as e:
-            say(f"Database error getting AQI for {sensorname}: {e}")
+            say(f"Database error getting {datatype_name} for "
+                f"{sensorname}: {e}")
             return None
 
     # ========================================================================
@@ -199,8 +229,40 @@ class GoogleSmartHomeIntegration:
         """
         devices = []
 
+        # Define units for each Google sensor type
+        GOOGLE_UNITS = {
+            'AirQuality': 'AQI',
+            'PM1': 'MICROGRAMS_PER_CUBIC_METER',
+            'PM2.5': 'MICROGRAMS_PER_CUBIC_METER',
+            'PM10': 'MICROGRAMS_PER_CUBIC_METER',
+            'AmbientTemperature': 'CELSIUS',
+            'AmbientHumidity': 'PERCENT'
+        }
+
         for friendly_name, sensor_name in self.room_mapping.items():
             device_id = f"aqi-sensor-{sensor_name}"
+
+            # Get available data types for this sensor
+            available_datatypes = self.get_available_datatypes(sensor_name)
+
+            # Build list of supported sensor states
+            sensor_states_supported = []
+            for datatype_name in available_datatypes:
+                if datatype_name in self.DATATYPE_TO_GOOGLE:
+                    google_name = self.DATATYPE_TO_GOOGLE[datatype_name]
+                    unit = GOOGLE_UNITS.get(google_name, 'UNKNOWN')
+
+                    sensor_states_supported.append({
+                        "name": google_name,
+                        "numericCapabilities": {
+                            "rawValueUnit": unit
+                        }
+                    })
+
+            # Skip sensor if no supported data types
+            if not sensor_states_supported:
+                say(f"Skipping {sensor_name} - no supported data types")
+                continue
 
             devices.append({
                 "id": device_id,
@@ -226,20 +288,7 @@ class GoogleSmartHomeIntegration:
                     "swVersion": "1.0"
                 },
                 "attributes": {
-                    "sensorStatesSupported": [
-                        {
-                            "name": "AirQuality",
-                            "numericCapabilities": {
-                                "rawValueUnit": "AQI"
-                            }
-                        },
-                        {
-                            "name": "PM2.5",
-                            "numericCapabilities": {
-                                "rawValueUnit": "MICROGRAMS_PER_CUBIC_METER"
-                            }
-                        }
-                    ]
+                    "sensorStatesSupported": sensor_states_supported
                 }
             })
 
@@ -281,10 +330,35 @@ class GoogleSmartHomeIntegration:
 
             sensor_name = device_id[len('aqi-sensor-'):]
 
-            # Get current AQI
-            aqi = self.get_trailing_average(sensor_name)
+            # Get available data types for this sensor
+            available_datatypes = self.get_available_datatypes(sensor_name)
 
-            if aqi is None:
+            # Query all available data types that we support
+            sensor_states = []
+            has_any_data = False
+
+            for datatype_name in available_datatypes:
+                # Check if we have a mapping for this datatype
+                if datatype_name not in self.DATATYPE_TO_GOOGLE:
+                    continue
+
+                google_name = self.DATATYPE_TO_GOOGLE[datatype_name]
+
+                # Get the current value
+                value = self.get_trailing_average(sensor_name, datatype_name)
+
+                if value is not None:
+                    has_any_data = True
+                    # Round if it's an integer-like value
+                    if datatype_name in ['aqi2.5', 'pm1.0', 'pm2.5', 'pm10.0']:
+                        value = round(value)
+
+                    sensor_states.append({
+                        "name": google_name,
+                        "rawValue": value
+                    })
+
+            if not has_any_data:
                 # Sensor offline or no recent data
                 device_states[device_id] = {
                     "online": False,
@@ -295,12 +369,7 @@ class GoogleSmartHomeIntegration:
                 device_states[device_id] = {
                     "online": True,
                     "status": "SUCCESS",
-                    "currentSensorStateData": [
-                        {
-                            "name": "AirQuality",
-                            "rawValue": aqi
-                        }
-                    ]
+                    "currentSensorStateData": sensor_states
                 }
 
         response = {
