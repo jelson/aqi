@@ -278,6 +278,7 @@ class GoogleSmartHomeIntegration:
         - Authorization code exchange for access + refresh tokens
         - Refresh token exchange for new access token
         """
+        say("token() ENTERED - top of function")
 
         # Set JSON response header
         cherrypy.response.headers['Content-Type'] = 'application/json'
