@@ -279,24 +279,37 @@ class GoogleSmartHomeIntegration:
         - Authorization code exchange for access + refresh tokens
         - Refresh token exchange for new access token
         """
-        # Parse form data or JSON
-        # Google typically sends form-encoded data, but we support both
-        if cherrypy.request.headers.get('Content-Type', '').startswith('application/json'):
-            try:
-                data = cherrypy.request.json
-            except (ValueError, AttributeError) as e:
-                say(f"Invalid JSON in token request: {e}")
-                cherrypy.response.status = 400
-                return {"error": "invalid_request", "error_description": "Invalid JSON"}
-        else:
-            data = cherrypy.request.params
+        try:
+            # Debug: log the incoming request
+            content_type = cherrypy.request.headers.get('Content-Type', 'not set')
+            say(f"token() called: Content-Type={content_type}")
 
-        client_id = self._extract_param(data.get('client_id'))
-        client_secret = self._extract_param(data.get('client_secret'))
-        grant_type = self._extract_param(data.get('grant_type'))
+            # Parse form data or JSON
+            # Google typically sends form-encoded data, but we support both
+            if content_type.startswith('application/json'):
+                try:
+                    data = cherrypy.request.json
+                except (ValueError, AttributeError) as e:
+                    say(f"Invalid JSON in token request: {e}")
+                    cherrypy.response.status = 400
+                    return {"error": "invalid_request", "error_description": "Invalid JSON"}
+            else:
+                data = cherrypy.request.params
 
-        # Debug logging
-        say(f"token() called: grant_type={grant_type}, client_id={client_id}, client_secret={'***' if client_secret else None}")
+            say(f"token() data keys: {list(data.keys()) if hasattr(data, 'keys') else 'not a dict'}")
+
+            client_id = self._extract_param(data.get('client_id'))
+            client_secret = self._extract_param(data.get('client_secret'))
+            grant_type = self._extract_param(data.get('grant_type'))
+
+            # Debug logging
+            say(f"token() parsed: grant_type={grant_type}, client_id={client_id}, client_secret={'***' if client_secret else None}")
+        except Exception as e:
+            say(f"EXCEPTION in token(): {e}")
+            import traceback
+            say(traceback.format_exc())
+            cherrypy.response.status = 500
+            return {"error": "server_error", "error_description": str(e)}
 
         # Verify client credentials
         if client_id != self.client_id or client_secret != self.client_secret:
