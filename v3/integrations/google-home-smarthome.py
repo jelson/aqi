@@ -642,9 +642,15 @@ def main():
 
     # Configure CherryPy
     cherrypy.config.update({
+        'environment': 'development',
         'server.socket_host': config.get('listen-host', '127.0.0.1'),
         'server.socket_port': config.get('listen-port', 15001),
         'server.socket_timeout': 30,
+        'log.screen': True,
+        'log.access_file': '',
+        'log.error_file': '',
+        'request.show_tracebacks': True,
+        'request.show_mismatched_params': True,
     })
 
     say("Starting Google Smart Home integration service...")
