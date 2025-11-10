@@ -270,6 +270,7 @@ class GoogleSmartHomeIntegration:
             raise cherrypy.HTTPRedirect(redirect_url)
 
     @cherrypy.expose
+    @cherrypy.tools.json_out()
     def token(self, **kwargs):
         """
         OAuth token exchange endpoint.
@@ -279,9 +280,6 @@ class GoogleSmartHomeIntegration:
         - Refresh token exchange for new access token
         """
         say("token() ENTERED - top of function")
-
-        # Set JSON response header
-        cherrypy.response.headers['Content-Type'] = 'application/json'
 
         try:
             # Debug: log the incoming request
@@ -296,7 +294,7 @@ class GoogleSmartHomeIntegration:
                 except (ValueError, AttributeError) as e:
                     say(f"Invalid JSON in token request: {e}")
                     cherrypy.response.status = 400
-                    return json.dumps({"error": "invalid_request", "error_description": "Invalid JSON"})
+                    return {"error": "invalid_request", "error_description": "Invalid JSON"}
             else:
                 data = cherrypy.request.params
 
@@ -313,13 +311,13 @@ class GoogleSmartHomeIntegration:
             import traceback
             say(traceback.format_exc())
             cherrypy.response.status = 500
-            return json.dumps({"error": "server_error", "error_description": str(e)})
+            return {"error": "server_error", "error_description": str(e)}
 
         # Verify client credentials
         if client_id != self.client_id or client_secret != self.client_secret:
             say(f"Invalid client credentials: client_id match={client_id == self.client_id}, client_secret match={client_secret == self.client_secret}")
             cherrypy.response.status = 401
-            return json.dumps({"error": "invalid_client"})
+            return {"error": "invalid_client"}
 
         if grant_type == 'authorization_code':
             # Exchange authorization code for tokens
@@ -329,14 +327,14 @@ class GoogleSmartHomeIntegration:
             if not auth_data:
                 say(f"Invalid auth code: {code}")
                 cherrypy.response.status = 400
-                return json.dumps({"error": "invalid_grant"})
+                return {"error": "invalid_grant"}
 
             # Check expiration
             if time.time() > auth_data['expires']:
                 say("Auth code expired")
                 del self.auth_codes[code]
                 cherrypy.response.status = 400
-                return json.dumps({"error": "invalid_grant"})
+                return {"error": "invalid_grant"}
 
             # Generate tokens
             access_token = secrets.token_urlsafe(32)
@@ -356,12 +354,12 @@ class GoogleSmartHomeIntegration:
             del self.auth_codes[code]
 
             say("token() returning successful auth_code exchange")
-            return json.dumps({
+            return {
                 "token_type": "Bearer",
                 "access_token": access_token,
                 "refresh_token": refresh_token,
                 "expires_in": 3600
-            })
+            }
 
         elif grant_type == 'refresh_token':
             # Exchange refresh token for new access token
@@ -371,7 +369,7 @@ class GoogleSmartHomeIntegration:
             if not refresh_data:
                 say(f"Invalid refresh token")
                 cherrypy.response.status = 400
-                return json.dumps({"error": "invalid_grant"})
+                return {"error": "invalid_grant"}
 
             # Clean up expired tokens before creating new one
             self._cleanup_expired_tokens()
@@ -394,16 +392,16 @@ class GoogleSmartHomeIntegration:
             self.refresh_tokens[refresh_token]['access_token'] = access_token
 
             say("token() returning successful refresh_token exchange")
-            return json.dumps({
+            return {
                 "token_type": "Bearer",
                 "access_token": access_token,
                 "expires_in": 3600
-            })
+            }
 
         else:
             say(f"Unsupported grant_type: {grant_type}")
             cherrypy.response.status = 400
-            return json.dumps({"error": "unsupported_grant_type"})
+            return {"error": "unsupported_grant_type"}
 
     # ========================================================================
     # Smart Home Intents
