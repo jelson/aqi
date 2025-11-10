@@ -270,6 +270,7 @@ class GoogleSmartHomeIntegration:
             raise cherrypy.HTTPRedirect(redirect_url)
 
     @cherrypy.expose
+    @cherrypy.tools.json_out()
     def token(self):
         """
         OAuth token exchange endpoint.
@@ -278,8 +279,6 @@ class GoogleSmartHomeIntegration:
         - Authorization code exchange for access + refresh tokens
         - Refresh token exchange for new access token
         """
-        # Set JSON content type for response
-        cherrypy.response.headers['Content-Type'] = 'application/json'
 
         try:
             # Debug: log the incoming request
@@ -294,7 +293,7 @@ class GoogleSmartHomeIntegration:
                 except (ValueError, AttributeError) as e:
                     say(f"Invalid JSON in token request: {e}")
                     cherrypy.response.status = 400
-                    return json.dumps({"error": "invalid_request", "error_description": "Invalid JSON"}
+                    return {"error": "invalid_request", "error_description": "Invalid JSON"}
             else:
                 data = cherrypy.request.params
 
@@ -311,13 +310,13 @@ class GoogleSmartHomeIntegration:
             import traceback
             say(traceback.format_exc())
             cherrypy.response.status = 500
-            return json.dumps({"error": "server_error", "error_description": str(e)}
+            return {"error": "server_error", "error_description": str(e)}
 
         # Verify client credentials
         if client_id != self.client_id or client_secret != self.client_secret:
             say(f"Invalid client credentials: client_id match={client_id == self.client_id}, client_secret match={client_secret == self.client_secret}")
             cherrypy.response.status = 401
-            return json.dumps({"error": "invalid_client"}
+            return {"error": "invalid_client"}
 
         if grant_type == 'authorization_code':
             # Exchange authorization code for tokens
@@ -326,13 +325,13 @@ class GoogleSmartHomeIntegration:
             auth_data = self.auth_codes.get(code)
             if not auth_data:
                 cherrypy.response.status = 400
-                return json.dumps({"error": "invalid_grant"}
+                return {"error": "invalid_grant"}
 
             # Check expiration
             if time.time() > auth_data['expires']:
                 del self.auth_codes[code]
                 cherrypy.response.status = 400
-                return json.dumps({"error": "invalid_grant"}
+                return {"error": "invalid_grant"}
 
             # Generate tokens
             access_token = secrets.token_urlsafe(32)
@@ -365,7 +364,7 @@ class GoogleSmartHomeIntegration:
             refresh_data = self.refresh_tokens.get(refresh_token)
             if not refresh_data:
                 cherrypy.response.status = 400
-                return json.dumps({"error": "invalid_grant"}
+                return {"error": "invalid_grant"}
 
             # Clean up expired tokens before creating new one
             self._cleanup_expired_tokens()
@@ -395,7 +394,7 @@ class GoogleSmartHomeIntegration:
 
         else:
             cherrypy.response.status = 400
-            return json.dumps({"error": "unsupported_grant_type"}
+            return {"error": "unsupported_grant_type"}
 
     # ========================================================================
     # Smart Home Intents
@@ -416,14 +415,14 @@ class GoogleSmartHomeIntegration:
         auth_header = cherrypy.request.headers.get('Authorization', '')
         if not auth_header.startswith('Bearer '):
             cherrypy.response.status = 401
-            return json.dumps({"error": "Missing authorization"}
+            return {"error": "Missing authorization"}
 
         access_token = auth_header[7:]  # Remove 'Bearer ' prefix
         username = self.verify_access_token(access_token)
 
         if not username:
             cherrypy.response.status = 401
-            return json.dumps({"error": "Invalid or expired token"}
+            return {"error": "Invalid or expired token"}
 
         say(f"Smart Home request from {username}: {json.dumps(request_data, indent=2)}")
 
@@ -433,14 +432,14 @@ class GoogleSmartHomeIntegration:
 
         if not inputs:
             cherrypy.response.status = 400
-            return json.dumps({"error": "No inputs provided"}
+            return {"error": "No inputs provided"}
 
         intent = inputs[0].get('intent')
 
         # Validate intent is not None
         if not intent:
             cherrypy.response.status = 400
-            return json.dumps({"error": "Missing intent in request"}
+            return {"error": "Missing intent in request"}
 
         if intent == 'action.devices.SYNC':
             return self.handle_sync(request_id)
@@ -452,7 +451,7 @@ class GoogleSmartHomeIntegration:
             return self.handle_disconnect(request_id)
         else:
             cherrypy.response.status = 400
-            return json.dumps({"error": f"Unknown intent: {intent}"}
+            return {"error": f"Unknown intent: {intent}"}
 
     def handle_sync(self, request_id):
         """
