@@ -209,9 +209,9 @@ class GoogleSmartHomeIntegration:
                     "defaultNames": ["AQI Sensor"],
                     "name": f"{friendly_name.title()} Air Quality",
                     "nicknames": [
-                        friendly_name,
-                        f"{friendly_name} AQI",
-                        f"{friendly_name} air quality"
+                        f"{friendly_name.title()} Air Quality",
+                        f"{friendly_name} air quality",
+                        f"{friendly_name} AQI"
                     ]
                 },
                 "willReportState": False,
