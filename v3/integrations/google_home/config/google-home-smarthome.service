@@ -1,0 +1,14 @@
+[Unit]
+Description=Google Smart Home Integration for AQI Sensors
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=YOUR_USERNAME_HERE
+WorkingDirectory=/path/to/aqi
+ExecStart=/usr/bin/python3 /path/to/aqi/v3/integrations/google-home/src/main.py --config /path/to/aqi/v3/integrations/google-home/config/config.yml
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

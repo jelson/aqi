@@ -1,0 +1,38 @@
+# Configuration file for Google Smart Home integration
+#
+# Copy this file and customize it for your setup:
+#   cp google-home-smarthome-config-example.yml google-home-smarthome-config.yml
+#   vi google-home-smarthome-config.yml
+
+# OAuth 2.0 Configuration
+# These must match what you configure in the Google Home Developer Console
+oauth_client_id: aqi-sensors
+oauth_client_secret: CHANGE_ME_TO_A_RANDOM_SECRET
+
+# OAuth redirect URI prefix for validation (security)
+# Google Smart Home uses: https://oauth-redirect.googleusercontent.com/r/YOUR_PROJECT_ID
+# Leave as default unless you know what you're doing
+oauth_redirect_uri: https://oauth-redirect.googleusercontent.com/r/
+
+# Directory for persistent token storage (must exist)
+# Tokens are stored in google-smarthome-tokens.json in this directory
+token_storage_dir: /var/lib/google-smarthome
+
+# Simple username/password for account linking
+# For personal use only - in production, integrate with your actual user system
+username: admin
+password: CHANGE_ME_TO_A_SECURE_PASSWORD
+
+# Port the service will listen on (default: 15001)
+listen-port: 15001
+
+# Host to listen on
+# Use 127.0.0.1 for localhost only (recommended when behind reverse proxy)
+# Use :: or 0.0.0.0 to listen on all interfaces
+listen-host: 127.0.0.1
+
+# Map friendly room names (what you say to Google) to sensor names in the database
+# These will appear as individual sensor devices in Google Home
+room_mapping:
+  bedroom: jer-bedroom
+  office: jer-office

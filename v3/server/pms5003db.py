@@ -12,9 +12,8 @@ import psycopg2
 import time
 
 # project libraries
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from common.mylogging import say
-import server.database as database
 
 # Convert PM2.5 to AQI. It seems that AQI is not defined above PM2.5
 # of 500 so we just add to it linearly after that.
@@ -75,6 +74,79 @@ class PMS5003Database:
 
     def get_datatype_by_name(self, datatype):
         return self.datatypes.get(datatype, None)
+
+    def get_datatypes_for_sensor(self, sensorname):
+        """
+        Get list of available datatype names for a sensor.
+
+        Args:
+            sensorname: Name of the sensor
+
+        Returns:
+            List of datatype names (strings) available for this sensor,
+            or empty list if sensor not found or on error
+        """
+        sensorid = self.get_sensorid_by_name(sensorname)
+        if not sensorid:
+            say(f"Unknown sensor name: {sensorname}")
+            return []
+
+        try:
+            db = self.get_raw_db()
+            cursor = db.cursor()
+            cursor.execute(
+                """
+                SELECT DISTINCT t.name
+                FROM sensordatav4_latest l
+                JOIN sensordatav4_types t ON l.datatype = t.id
+                WHERE l.sensorid = %s
+                ORDER BY t.name
+                """,
+                (sensorid,)
+            )
+            datatypes = [row[0] for row in cursor.fetchall()]
+            return datatypes
+        except Exception as e:
+            say(f"Error getting datatypes for {sensorname}: {e}")
+            db.rollback()
+            return []
+
+    def get_latest_values_for_sensor(self, sensorname, max_age_sec=60):
+        """
+        Get latest values for all datatypes for a sensor.
+
+        Args:
+            sensorname: Name of the sensor
+            max_age_sec: Maximum age in seconds (default: 60)
+
+        Returns:
+            Dict mapping datatype names to values,
+            or empty dict if sensor not found or on error
+        """
+        sensorid = self.get_sensorid_by_name(sensorname)
+        if not sensorid:
+            say(f"Unknown sensor name: {sensorname}")
+            return {}
+
+        try:
+            db = self.get_raw_db()
+            cursor = db.cursor()
+            cursor.execute(
+                """
+                SELECT t.name, l.value
+                FROM sensordatav4_latest l
+                JOIN sensordatav4_types t ON l.datatype = t.id
+                WHERE l.sensorid = %s
+                  AND l.time > now() - make_interval(secs => %s)
+                """,
+                (sensorid, max_age_sec)
+            )
+            values = {row[0]: row[1] for row in cursor.fetchall()}
+            return values
+        except Exception as e:
+            say(f"Error getting latest values for {sensorname}: {e}")
+            db.rollback()
+            return {}
 
     def _insert_expanded(self, insertion_list):
         db = self.get_raw_db()
