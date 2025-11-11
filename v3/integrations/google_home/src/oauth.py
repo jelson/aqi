@@ -285,17 +285,22 @@ class OAuthHandler:
             'expires': time.time() + 600  # 10 minutes
         }
 
+        # Build redirect URI from the request (preserves scheme and host from reverse proxy)
+        # Use absolute=True and include the scheme to get full URL
+        base_url = cherrypy.url('/auth/callback', base=cherrypy.request.base, relative=False)
+
         # Build Google OAuth authorization URL
         google_auth_url = (
             "https://accounts.google.com/o/oauth2/v2/auth?"
             f"client_id={urllib.parse.quote(self.google_client_id)}&"
-            f"redirect_uri={urllib.parse.quote(cherrypy.url('/auth/callback'))}&"
+            f"redirect_uri={urllib.parse.quote(base_url)}&"
             f"response_type=code&"
             f"scope={urllib.parse.quote('openid email')}&"
             f"state={urllib.parse.quote(google_state)}"
         )
 
         say(f"Redirecting to Google OAuth: {google_auth_url}")
+        say(f"Redirect URI: {base_url}")
         raise cherrypy.HTTPRedirect(google_auth_url)
 
     @cherrypy.expose
@@ -341,12 +346,15 @@ class OAuthHandler:
 
         # Exchange authorization code for tokens from Google
         try:
+            # Build redirect URI from the request (must match what was sent to Google)
+            callback_url = cherrypy.url('/auth/callback', base=cherrypy.request.base, relative=False)
+
             token_url = "https://oauth2.googleapis.com/token"
             token_data = {
                 'code': code,
                 'client_id': self.google_client_id,
                 'client_secret': self.google_client_secret,
-                'redirect_uri': cherrypy.url('/auth/callback'),
+                'redirect_uri': callback_url,
                 'grant_type': 'authorization_code'
             }
 
