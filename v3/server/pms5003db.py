@@ -13,7 +13,6 @@ import psycopg2
 # project libraries
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from common.mylogging import say
-import server.database as database
 
 # Convert PM2.5 to AQI. It seems that AQI is not defined above PM2.5
 # of 500 so we just add to it linearly after that.

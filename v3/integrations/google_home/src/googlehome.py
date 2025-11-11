@@ -72,9 +72,9 @@ class GoogleSmartHomeIntegration:
     # ========================================================================
 
     # Mapping from database datatype names to Google Home sensor names
+    # Note: Google only supports PM2.5 and PM10, not PM1
     DATATYPE_TO_GOOGLE = {
         'aqi2.5': 'AirQuality',
-        'pm1.0': 'PM1',
         'pm2.5': 'PM2.5',
         'pm10.0': 'PM10',
         'temperature': 'AmbientTemperature',
@@ -167,7 +167,6 @@ class GoogleSmartHomeIntegration:
         # Define units for each Google sensor type
         GOOGLE_UNITS = {
             'AirQuality': 'AQI',
-            'PM1': 'MICROGRAMS_PER_CUBIC_METER',
             'PM2.5': 'MICROGRAMS_PER_CUBIC_METER',
             'PM10': 'MICROGRAMS_PER_CUBIC_METER',
             'AmbientTemperature': 'CELSIUS',
@@ -236,7 +235,8 @@ class GoogleSmartHomeIntegration:
             }
         }
 
-        say(f"SYNC response: {len(devices)} devices")
+        say(f"SYNC response ({len(devices)} devices):\n"
+            f"{json.dumps(response, indent=2)}")
         return response
 
     def handle_query(self, request_id, input_data):
@@ -278,8 +278,8 @@ class GoogleSmartHomeIntegration:
 
                 google_datatype = self.DATATYPE_TO_GOOGLE[datatype_name]
 
-                # Round if it's an integer-like value
-                if datatype_name in ['aqi2.5', 'pm1.0', 'pm2.5', 'pm10.0']:
+                # Round if it's a numeric type
+                if isinstance(value, (int, float)):
                     value = round(value)
 
                 sensor_states.append({

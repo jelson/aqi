@@ -119,3 +119,244 @@ The PMS5003 parsing code is based on
 
 * Optional: install Grafana (or similar tool) to visualize the data from your
   database.
+
+## Google Home Integration
+
+You can query your air quality data using Google Home / Google Assistant with voice commands like "Hey Google, what's the bedroom air quality?" or "Hey Google, what's the PM2.5 in the office?"
+
+This integration uses Google's Smart Home Actions (Cloud-to-Cloud) to expose your sensors as smart home devices. Sensors appear queryable by voice but won't show up in the Google Home app visually.
+
+### Setup Steps
+
+#### 1. Install and Configure the Integration Service
+
+Install dependencies (no additional Python libraries needed beyond what you already have for the sensor system).
+
+Create a config file in a secure location **outside the repository** (so it won't be checked into git):
+
+```bash
+# Generate a random OAuth client secret
+openssl rand -hex 32
+
+# Copy the example config to a secure location
+cp v3/integrations/google-home-smarthome-config-example.yml /path/to/your/google-home-smarthome-config.yml
+
+# Edit the config file
+vi /path/to/your/google-home-smarthome-config.yml
+```
+
+Edit the configuration:
+- **oauth_client_id**: Can leave as default (`aqi-sensors`) or customize
+- **oauth_client_secret**: Paste the random secret from the `openssl rand -hex 32` command above
+- **username/password**: Set credentials for account linking (just for you - these are what you'll use to log in during account linking)
+- **room_mapping**: Map friendly names to your sensor names in the database
+
+**Important**: Keep your config file outside the repository directory to prevent accidentally committing sensitive credentials.
+
+Test the database query (before starting the service):
+
+```bash
+# Test that the service can query your sensors
+v3/integrations/google-home-smarthome.py --config /path/to/your/google-home-smarthome-config.yml --test-query jer-bedroom
+v3/integrations/google-home-smarthome.py --config /path/to/your/google-home-smarthome-config.yml --test-query jer-office
+```
+
+This will show you if the database queries are working correctly and display the current AQI for each sensor.
+
+**Important**: This service runs as HTTP and is designed to run behind a reverse proxy (nginx, Apache, etc.) that handles HTTPS/TLS termination. You **must** configure HTTPS for Google to connect.
+
+Set up your reverse proxy to forward requests. The exact configuration depends on your web server:
+
+**Apache** (add to your VirtualHost configuration):
+```apache
+# Forward all /smarthome/* requests to the local service
+ProxyPass /smarthome http://127.0.0.1:15001
+ProxyPassReverse /smarthome http://127.0.0.1:15001
+
+# The service handles three endpoints:
+# - /smarthome/auth (OAuth authorization page)
+# - /smarthome/token (OAuth token exchange)
+# - /smarthome/serve (Smart Home fulfillment)
+```
+
+**nginx**:
+```nginx
+location /smarthome/ {
+    proxy_pass http://127.0.0.1:15001/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+After configuring the reverse proxy, restart your web server:
+```bash
+# Apache
+sudo systemctl restart apache2
+
+# nginx
+sudo systemctl restart nginx
+```
+
+Test that the endpoints are accessible via HTTPS:
+```bash
+# Should return a 400 error (missing parameters), not a connection error
+curl -X GET https://your-domain.com/smarthome/auth
+
+# Should return a 400 error (missing POST data), not a connection error
+curl -X POST https://your-domain.com/smarthome/token
+```
+
+Set up systemd for auto-start:
+
+```bash
+cp v3/integrations/google-home-smarthome.service /etc/systemd/system/
+vi /etc/systemd/system/google-home-smarthome.service  # customize config path and username
+systemctl daemon-reload
+systemctl start google-home-smarthome.service
+systemctl enable google-home-smarthome.service
+```
+
+**Note on Token Persistence:**
+- OAuth tokens are automatically saved to `/tmp/google-smarthome-tokens.json`
+- Tokens survive service restarts, so you won't need to re-link your account
+- Tokens are cleared on server reboot (since they're in `/tmp`)
+- After a server reboot, you'll need to re-link your account in the Google Home app
+
+#### 2. Create a Smart Home Action in Google Home Developer Console
+
+1. **Go to the Google Home Developer Console**
+   - Visit [console.home.google.com](https://console.home.google.com/)
+   - Sign in with your Google account
+
+2. **Create a new project**
+   - Click **"New project"** button
+   - Enter a project name (e.g., "AQI Sensors")
+   - Click **"Create project"**
+
+3. **Set up Cloud-to-cloud integration**
+   - You'll be taken to the project dashboard
+   - In the left sidebar, click **"Develop"**
+   - Click **"Cloud-to-cloud"** card (not Matter)
+   - Click **"Add"** button to create a new integration
+
+4. **Configure integration basics**
+   - **Name**: Enter "AQI Sensors" (or your preferred name - this appears in Google Home app)
+   - **Device type**: Select **"Sensor"**
+   - Click **"Next"**
+
+5. **Configure Account Linking (OAuth)** - **CRITICAL STEP**
+   - **Linking type**: Select **"OAuth"** / **"Authorization Code"**
+   - **Client ID**: Enter the value from your config file's `oauth_client_id` (default: `aqi-sensors`)
+   - **Client secret**: Enter the value you generated with `openssl rand -hex 32`
+   - **Authorization URL**: `https://your-domain.com/smarthome/auth`
+   - **Token URL**: `https://your-domain.com/smarthome/token`
+   - **Scopes**: Leave empty or add any dummy scope (not used by this integration)
+   - Click **"Next"**
+
+   **Important**: Replace `your-domain.com` with your actual domain. URLs must use HTTPS.
+
+6. **Configure the Fulfillment endpoint**
+   - **Fulfillment URL**: `https://your-domain.com/smarthome/serve`
+   - This endpoint handles SYNC, QUERY, EXECUTE, and DISCONNECT intents
+   - Click **"Save"**
+
+7. **Enable testing**
+   - In the left sidebar, click **"Test"**
+   - Click **"Start testing"** button
+   - Your integration is now available for testing on devices linked to your Google account
+
+#### 3. Link Your Account in Google Home App
+
+1. Open the Google Home app on your phone
+2. Tap "+" (Add) → "Set up device" → "Works with Google"
+3. Search for your project name (e.g., "AQI Sensors")
+4. Tap it and sign in with the username/password from your config file
+5. Google will discover your sensors
+
+You should now see sensors like "Bedroom Air Quality" and "Office Air Quality" in the account linking confirmation (though they won't appear in the main Google Home interface - this is normal for sensors).
+
+#### 4. Try Voice Queries
+
+Say to any Google Home device or Google Assistant:
+- **"Hey Google, what's the bedroom air quality?"**
+- **"Hey Google, what's the office air quality?"**
+
+Google will query your sensors and speak responses like:
+- "The bedroom air quality is 23 AQI"
+- "The office air quality is 15 AQI"
+
+### How It Works
+
+The integration exposes each room's sensor as a Smart Home SENSOR device with the SensorState trait. When you ask about air quality:
+
+1. Google sends a QUERY intent to your `/smarthome` endpoint
+2. Your service queries the Postgres database for the latest AQI reading
+3. Returns the value in the Smart Home API format
+4. Google automatically converts it to natural language TTS
+
+### Supported Queries
+
+- Air quality by room: "What's the [room] air quality?"
+- Any of your configured rooms work (bedroom, office, etc.)
+- Sensors report both AirQuality (AQI units) and PM2.5 values
+
+### Troubleshooting
+
+**"Could not reach [service name]" error during account linking:**
+
+This error occurs when the OAuth token exchange fails. To diagnose:
+
+1. Check that the service is running:
+   ```bash
+   systemctl status google-home-smarthome.service
+   ```
+
+2. Watch the logs in real-time during account linking:
+   ```bash
+   journalctl -u google-home-smarthome.service -f
+   ```
+
+3. Test the OAuth endpoints manually:
+   ```bash
+   # Test the auth endpoint (should return 400 "Missing required OAuth parameters")
+   curl -X GET https://your-domain.com/smarthome/auth
+
+   # Test the token endpoint (should return JSON with "invalid_client" error)
+   curl -X POST https://your-domain.com/smarthome/token \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "client_id=test&client_secret=test&grant_type=authorization_code&code=test"
+   ```
+
+4. Common causes:
+   - **Reverse proxy misconfiguration**: Verify Apache/nginx is forwarding `/smarthome/*` to `http://127.0.0.1:15001/`
+   - **OAuth credentials mismatch**: Ensure `oauth_client_id` and `oauth_client_secret` in your config file exactly match what you entered in the Google Home Developer Console
+   - **Service not binding to correct port**: Check the logs confirm it's listening on the configured port (default: 15001)
+   - **Firewall blocking localhost**: The reverse proxy must be able to reach `127.0.0.1:15001`
+
+**Sensors not discovered after successful account linking:**
+- Check that the service is running and accessible via HTTPS
+- Verify the fulfillment URL is correct in Google Console: `https://your-domain.com/smarthome/serve`
+- Check logs for SYNC intent: `journalctl -u google-home-smarthome.service -f`
+- Verify room_mapping in config file matches your sensor names in the database
+
+**"Not available right now" when asking about air quality:**
+- Sensor may be offline or has no recent data (> 60 seconds old)
+- Check database for recent readings from that sensor:
+  ```sql
+  SELECT time, value FROM sensordatav4_tsdb
+  WHERE sensorid IN (SELECT id FROM sensordatav4_sensors WHERE sensorname='jer-bedroom')
+    AND datatype = (SELECT id FROM sensordatav4_types WHERE typename='aqi2.5')
+  ORDER BY time DESC LIMIT 10;
+  ```
+- Check that sensor name in room_mapping matches database exactly (case-sensitive)
+
+**Wrong username/password during account linking:**
+- Verify username/password in config file
+- Note: Password is hashed with SHA256, so changing it requires restarting the service
+- Check logs for "Invalid credentials" messages
+
+**Service won't start:**
+- Verify config file path is correct
+- Check config file syntax (YAML format)
+- Verify all required fields are present: oauth_client_id, oauth_client_secret, username, password, room_mapping
+- Check logs: `journalctl -u google-home-smarthome.service -n 50`
