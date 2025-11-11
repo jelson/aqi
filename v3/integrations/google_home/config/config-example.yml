@@ -18,10 +18,11 @@ oauth_redirect_uri: https://oauth-redirect.googleusercontent.com/r/
 # Tokens are stored in google-smarthome-tokens.json in this directory
 token_storage_dir: /var/lib/google-smarthome
 
-# Simple username/password for account linking
-# For personal use only - in production, integrate with your actual user system
-username: admin
-password: CHANGE_ME_TO_A_SECURE_PASSWORD
+# Google OAuth configuration for Sign-In with Google
+# Create OAuth credentials at https://console.cloud.google.com/apis/credentials
+# Set authorized redirect URI to: https://your-domain.com/smarthome/auth/callback
+google_oauth_client_id: YOUR_GOOGLE_OAUTH_CLIENT_ID
+google_oauth_client_secret: YOUR_GOOGLE_OAUTH_CLIENT_SECRET
 
 # Port the service will listen on (default: 15001)
 listen-port: 15001
@@ -31,8 +32,15 @@ listen-port: 15001
 # Use :: or 0.0.0.0 to listen on all interfaces
 listen-host: 127.0.0.1
 
-# Map friendly room names (what you say to Google) to sensor names in the database
-# These will appear as individual sensor devices in Google Home
-room_mapping:
-  bedroom: jer-bedroom
-  office: jer-office
+# User configuration: Map Google email addresses to their sensor mappings
+# Each user sees only their own sensors when they link their account
+users:
+  jeremy@example.com:
+    room_mapping:
+      bedroom: jer-bedroom
+      office: jer-office
+
+  alice@example.com:
+    room_mapping:
+      living room: alice-living
+      bedroom: alice-bedroom

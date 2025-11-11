@@ -36,36 +36,28 @@ class GoogleSmartHomeIntegration:
         self.config = config
         self.pmsdb = PMS5003Database()
 
-        # Initialize OAuth handler
-        self.oauth = OAuthHandler(config)
+        # Load user configuration
+        self.users = config.get('users', {})
+        if not self.users:
+            raise ValueError("users configuration is required in config file")
+        if not isinstance(self.users, dict):
+            raise ValueError("users must be a dictionary")
 
-        # Map friendly names to sensor names - REQUIRED
-        room_mapping = config.get('room_mapping')
-        if not room_mapping:
-            raise ValueError("room_mapping is required in config file")
-        # Validate room_mapping is a dictionary
-        if not isinstance(room_mapping, dict):
-            raise ValueError("room_mapping in config must be a dictionary")
-        if len(room_mapping) == 0:
-            raise ValueError(
-                "room_mapping must contain at least one room"
-            )
-        self.room_mapping = room_mapping
+        # Initialize OAuth handler with user authorization callback
+        # Expose as nested object - CherryPy routes /auth/* to this object
+        self.auth = OAuthHandler(config, self.is_user_authorized)
 
-    # ========================================================================
-    # OAuth Endpoints (delegated to OAuth handler)
-    # ========================================================================
+    def is_user_authorized(self, email):
+        """
+        Check if a user is authorized.
 
-    @cherrypy.expose
-    def auth(self, **kwargs):
-        """OAuth authorization endpoint (delegated to OAuth handler)."""
-        return self.oauth.auth(**kwargs)
+        Args:
+            email: User email address
 
-    @cherrypy.expose
-    @cherrypy.tools.json_out()
-    def token(self, **kwargs):
-        """OAuth token endpoint (delegated to OAuth handler)."""
-        return self.oauth.token(**kwargs)
+        Returns:
+            True if user is authorized, False otherwise
+        """
+        return email in self.users
 
     # ========================================================================
     # Sensor Data Access
@@ -116,13 +108,13 @@ class GoogleSmartHomeIntegration:
             return {"error": "Missing authorization"}
 
         access_token = auth_header[7:]  # Remove 'Bearer ' prefix
-        username = self.oauth.verify_access_token(access_token)
+        email = self.auth.verify_access_token(access_token)
 
-        if not username:
+        if not email:
             cherrypy.response.status = 401
             return {"error": "Invalid or expired token"}
 
-        say(f"Smart Home request from {username}: "
+        say(f"Smart Home request from {email}: "
             f"{json.dumps(request_data, indent=2)}")
 
         # Route to appropriate intent handler
@@ -141,9 +133,9 @@ class GoogleSmartHomeIntegration:
             return {"error": "Missing intent in request"}
 
         if intent == 'action.devices.SYNC':
-            return self.handle_sync(request_id)
+            return self.handle_sync(request_id, email)
         elif intent == 'action.devices.QUERY':
-            return self.handle_query(request_id, inputs[0])
+            return self.handle_query(request_id, inputs[0], email)
         elif intent == 'action.devices.EXECUTE':
             return self.handle_execute(request_id, inputs[0])
         elif intent == 'action.devices.DISCONNECT':
@@ -152,16 +144,40 @@ class GoogleSmartHomeIntegration:
             cherrypy.response.status = 400
             return {"error": f"Unknown intent: {intent}"}
 
-    def handle_sync(self, request_id):
+    def handle_sync(self, request_id, email):
         """
         Handle SYNC intent - return list of available sensors.
 
         Args:
             request_id: Request ID from Google
+            email: User email address
 
         Returns:
             SYNC response with device list
         """
+        # Get user's room mapping
+        user_config = self.users.get(email)
+        if not user_config:
+            say(f"No configuration found for user: {email}")
+            return {
+                "requestId": request_id,
+                "payload": {
+                    "agentUserId": email,
+                    "devices": []
+                }
+            }
+
+        room_mapping = user_config.get('room_mapping', {})
+        if not room_mapping:
+            say(f"No room_mapping for user: {email}")
+            return {
+                "requestId": request_id,
+                "payload": {
+                    "agentUserId": email,
+                    "devices": []
+                }
+            }
+
         devices = []
 
         # Define units for each Google sensor type
@@ -173,7 +189,7 @@ class GoogleSmartHomeIntegration:
             'AmbientHumidity': 'PERCENT'
         }
 
-        for friendly_name, sensor_name in self.room_mapping.items():
+        for friendly_name, sensor_name in room_mapping.items():
             device_id = self.sensor_to_device_id(sensor_name)
 
             # Get available data types for this sensor
@@ -230,7 +246,7 @@ class GoogleSmartHomeIntegration:
         response = {
             "requestId": request_id,
             "payload": {
-                "agentUserId": self.oauth.username,
+                "agentUserId": email,
                 "devices": devices
             }
         }
@@ -239,13 +255,14 @@ class GoogleSmartHomeIntegration:
             f"{json.dumps(response, indent=2)}")
         return response
 
-    def handle_query(self, request_id, input_data):
+    def handle_query(self, request_id, input_data, email):
         """
         Handle QUERY intent - return current sensor states.
 
         Args:
             request_id: Request ID from Google
             input_data: Input data containing device list
+            email: User email address
 
         Returns:
             QUERY response with device states

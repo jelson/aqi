@@ -69,8 +69,9 @@ def main():
             }
         }
 
-        # Call the real QUERY handler
-        response = googlehome.handle_query('test-request-id', query_input)
+        # Call the real QUERY handler (use first user's email for testing)
+        test_email = list(config.get('users', {}).keys())[0] if config.get('users') else 'test@example.com'
+        response = googlehome.handle_query('test-request-id', query_input, test_email)
 
         # Display the result
         import json
@@ -94,10 +95,26 @@ def main():
         'log.error_file': '',
         'request.show_tracebacks': True,
         'request.show_mismatched_params': True,
+        # Trust X-Forwarded-* headers from reverse proxy
+        'tools.proxy.on': True,
+        'tools.proxy.base': '',  # Will be constructed from headers
     })
 
+    # Tool to handle X-Forwarded-Prefix header
+    def apply_forwarded_prefix():
+        """Apply X-Forwarded-Prefix to cherrypy.request.script_name"""
+        prefix = cherrypy.request.headers.get('X-Forwarded-Prefix', '')
+        if prefix:
+            cherrypy.request.script_name = prefix
+
+    cherrypy.tools.forwarded_prefix = cherrypy.Tool('before_handler', apply_forwarded_prefix)
+
     say("Starting Google Smart Home integration service...")
-    cherrypy.quickstart(GoogleSmartHomeIntegration(config), '/')
+    cherrypy.quickstart(
+        GoogleSmartHomeIntegration(config),
+        '/',
+        {'/': {'tools.forwarded_prefix.on': True}}
+    )
 
 
 if __name__ == '__main__':

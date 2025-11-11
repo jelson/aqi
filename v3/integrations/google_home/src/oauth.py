@@ -17,6 +17,7 @@ import hmac
 import time
 import html
 import urllib.parse
+import urllib.request
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -26,20 +27,21 @@ from common.mylogging import say
 class OAuthHandler:
     """Handles OAuth 2.0 authentication for Google Smart Home integration."""
 
-    def __init__(self, config):
+    def __init__(self, config, is_user_authorized_callback):
         """
         Initialize OAuth handler.
 
         Args:
             config: Configuration dictionary with keys:
-                - oauth_client_id: OAuth client ID
-                - oauth_client_secret: OAuth client secret
-                - oauth_redirect_uri: Redirect URI (optional)
+                - oauth_client_id: Smart Home OAuth client ID
+                - oauth_client_secret: Smart Home OAuth client secret
+                - oauth_redirect_uri: Smart Home OAuth redirect URI (optional)
                 - token_storage_dir: Directory for token persistence (required)
-                - username: Username for authentication
-                - password: Password for authentication
+                - google_oauth_client_id: Google Sign-In client ID
+                - google_oauth_client_secret: Google Sign-In client secret
+            is_user_authorized_callback: Function that takes email (str) and returns bool
         """
-        # OAuth configuration
+        # Smart Home OAuth configuration
         self.client_id = str(config.get('oauth_client_id', 'aqi-sensors'))
         self.client_secret = config.get('oauth_client_secret')
         if not self.client_secret or not str(self.client_secret).strip():
@@ -48,11 +50,29 @@ class OAuthHandler:
             )
         self.client_secret = str(self.client_secret)
 
-        # OAuth redirect URI - must match Google Console configuration
+        # Smart Home OAuth redirect URI
         self.redirect_uri = config.get(
             'oauth_redirect_uri',
             'https://oauth-redirect.googleusercontent.com/r/'
         )
+
+        # Google Sign-In OAuth configuration
+        self.google_client_id = config.get('google_oauth_client_id')
+        if not self.google_client_id or not str(self.google_client_id).strip():
+            raise ValueError(
+                "google_oauth_client_id is required in config file"
+            )
+        self.google_client_id = str(self.google_client_id)
+
+        self.google_client_secret = config.get('google_oauth_client_secret')
+        if not self.google_client_secret or not str(self.google_client_secret).strip():
+            raise ValueError(
+                "google_oauth_client_secret is required in config file"
+            )
+        self.google_client_secret = str(self.google_client_secret)
+
+        # User authorization callback
+        self.is_user_authorized = is_user_authorized_callback
 
         # Token storage directory - must exist
         token_storage_dir = config.get('token_storage_dir')
@@ -65,38 +85,13 @@ class OAuthHandler:
             )
 
         self.token_file = os.path.join(token_storage_dir, 'google-smarthome-tokens.json')
-        self.auth_codes = {}  # code -> {'username': str, 'expires': time}
+        self.auth_codes = {}  # code -> {'email': str, 'expires': time}
         self.tokens = {}  # access_token -> data
         self.refresh_tokens = {}  # refresh_token -> data
+        self.google_auth_states = {}  # state -> Smart Home OAuth params
 
         # Load persisted tokens if available
         self._load_tokens()
-
-        # Simple username/password (for personal use)
-        self.username = config.get('username')
-        if not self.username or not str(self.username).strip():
-            raise ValueError("username is required in config file")
-        password = config.get('password')
-        if not password or not str(password).strip():
-            raise ValueError("password is required in config file")
-        self.password_hash = hashlib.sha256(
-            str(password).encode()
-        ).hexdigest()
-
-        # Load HTML template for OAuth login page
-        template_path = os.path.join(
-            os.path.dirname(__file__),
-            '..',
-            'assets',
-            'login.html'
-        )
-        try:
-            with open(template_path, 'r') as f:
-                self.login_html_template = f.read()
-        except FileNotFoundError:
-            raise ValueError(
-                f"Login template not found: {template_path}"
-            )
 
     def _load_tokens(self):
         """Load tokens from persistent storage."""
@@ -129,22 +124,44 @@ class OAuthHandler:
             say(f"Warning: Failed to save tokens to "
                 f"{self.token_file}: {e}")
 
-    def verify_password(self, username, password):
+    def verify_google_token(self, id_token):
         """
-        Verify username and password.
+        Verify Google ID token and extract user email.
 
         Args:
-            username: Username to verify
-            password: Password to verify
+            id_token: Google ID token from OAuth callback
 
         Returns:
-            True if credentials are valid, False otherwise
+            User email if valid and authorized, None otherwise
         """
-        if username != self.username:
-            return False
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        # Use constant-time comparison to prevent timing attacks
-        return hmac.compare_digest(password_hash, self.password_hash)
+        try:
+            # Verify token with Google's token info endpoint
+            url = f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}"
+            with urllib.request.urlopen(url) as response:
+                data = json.loads(response.read().decode())
+
+            # Verify audience matches our client ID
+            if data.get('aud') != self.google_client_id:
+                say(f"Token audience mismatch: {data.get('aud')}")
+                return None
+
+            # Extract email
+            email = data.get('email')
+            if not email:
+                say("No email in token")
+                return None
+
+            # Check if user is authorized (via callback)
+            if not self.is_user_authorized(email):
+                say(f"User not authorized: {email}")
+                return None
+
+            say(f"Verified Google token for: {email}")
+            return email
+
+        except Exception as e:
+            say(f"Error verifying Google token: {e}")
+            return None
 
     def verify_access_token(self, token):
         """
@@ -154,7 +171,7 @@ class OAuthHandler:
             token: Access token to verify
 
         Returns:
-            Username if valid, None otherwise
+            User email if valid, None otherwise
         """
         token_data = self.tokens.get(token)
         if not token_data:
@@ -166,7 +183,7 @@ class OAuthHandler:
             self.tokens.pop(token, None)
             return None
 
-        return token_data['username']
+        return token_data['email']
 
     def _cleanup_expired_auth_codes(self):
         """Remove expired authorization codes."""
@@ -214,44 +231,37 @@ class OAuthHandler:
         return value[0] if isinstance(value, list) and value else value
 
     @cherrypy.expose
-    def auth(self, client_id=None, redirect_uri=None, state=None,
-             response_type=None, username=None, password=None):
+    def index(self, client_id=None, redirect_uri=None, state=None,
+              response_type=None):
         """
-        OAuth authorization endpoint.
-
-        GET: Show login form
-        POST: Process login and redirect with auth code
+        OAuth authorization endpoint - redirects to Google Sign-In.
 
         Args:
-            client_id: OAuth client ID
-            redirect_uri: Redirect URI
-            state: State parameter for CSRF protection
+            client_id: OAuth client ID (Smart Home)
+            redirect_uri: Redirect URI (Smart Home)
+            state: State parameter for CSRF protection (Smart Home)
             response_type: Response type (must be 'code')
-            username: Username (POST only)
-            password: Password (POST only)
 
         Returns:
-            HTML login form (GET) or redirect (POST)
+            Redirect to Google OAuth
         """
         # CherryPy may pass parameters as lists if they appear multiple times
         client_id = self._extract_param(client_id)
         redirect_uri = self._extract_param(redirect_uri)
         state = self._extract_param(state)
         response_type = self._extract_param(response_type)
-        username = self._extract_param(username)
-        password = self._extract_param(password)
 
         # Debug logging
-        say(f"auth() called: method={cherrypy.request.method}, "
-            f"client_id={client_id}, redirect_uri={redirect_uri}, "
-            f"state={state}, response_type={response_type}")
+        say(f"index() called: client_id={client_id}, "
+            f"redirect_uri={redirect_uri}, state={state}, "
+            f"response_type={response_type}")
 
         # Verify required parameters
         if not client_id or not redirect_uri or not state or \
            not response_type:
             raise cherrypy.HTTPError(400, "Missing required OAuth params")
 
-        # Verify this is a valid request from Google
+        # Verify this is a valid request from Google Smart Home
         if client_id != self.client_id:
             raise cherrypy.HTTPError(400, "Invalid client_id")
 
@@ -265,47 +275,136 @@ class OAuthHandler:
             say(f"Invalid redirect_uri: {redirect_uri}")
             raise cherrypy.HTTPError(400, "Invalid redirect_uri")
 
-        if cherrypy.request.method == 'GET':
-            # Show login form with proper HTML escaping
-            substitutions = {
-                '$CLIENT_ID': html.escape(client_id),
-                '$REDIRECT_URI': html.escape(redirect_uri),
-                '$STATE': html.escape(state),
-                '$RESPONSE_TYPE': html.escape(response_type)
+        # Generate state parameter for Google OAuth flow
+        # This state will link the Google callback back to this Smart Home auth request
+        google_state = secrets.token_urlsafe(32)
+        self.google_auth_states[google_state] = {
+            'client_id': client_id,
+            'redirect_uri': redirect_uri,
+            'state': state,
+            'expires': time.time() + 600  # 10 minutes
+        }
+
+        # Build redirect URI from the request (preserves scheme and host from reverse proxy)
+        # Use absolute=True and include the scheme to get full URL
+        base_url = cherrypy.url('/auth/callback', base=cherrypy.request.base, relative=False)
+
+        # Build Google OAuth authorization URL
+        google_auth_url = (
+            "https://accounts.google.com/o/oauth2/v2/auth?"
+            f"client_id={urllib.parse.quote(self.google_client_id)}&"
+            f"redirect_uri={urllib.parse.quote(base_url)}&"
+            f"response_type=code&"
+            f"scope={urllib.parse.quote('openid email')}&"
+            f"state={urllib.parse.quote(google_state)}"
+        )
+
+        say(f"Redirecting to Google OAuth: {google_auth_url}")
+        say(f"Redirect URI: {base_url}")
+        raise cherrypy.HTTPRedirect(google_auth_url)
+
+    @cherrypy.expose
+    def callback(self, code=None, state=None, error=None, **kwargs):
+        """
+        Google OAuth callback endpoint.
+
+        Args:
+            code: Authorization code from Google
+            state: State parameter linking back to Smart Home auth request
+            error: Error from Google (if auth failed)
+            **kwargs: Additional parameters from Google (scope, authuser, prompt, etc.)
+
+        Returns:
+            Redirect back to Google Smart Home with auth code
+        """
+        say(f"callback() called: code={code[:20] if code else None}..., "
+            f"state={state[:20] if state else None}..., error={error}, "
+            f"extra params: {list(kwargs.keys())}")
+
+        # Handle error from Google
+        if error:
+            say(f"Google OAuth error: {error}")
+            raise cherrypy.HTTPError(403, f"Google authentication failed: {error}")
+
+        # Verify required parameters
+        if not code or not state:
+            raise cherrypy.HTTPError(400, "Missing code or state")
+
+        # Look up the Smart Home auth request
+        auth_request = self.google_auth_states.get(state)
+        if not auth_request:
+            say(f"Unknown or expired state: {state}")
+            raise cherrypy.HTTPError(400, "Invalid or expired state")
+
+        # Clean up expired states
+        now = time.time()
+        self.google_auth_states = {
+            s: data for s, data in self.google_auth_states.items()
+            if data['expires'] > now
+        }
+
+        # Remove this state (one-time use)
+        del self.google_auth_states[state]
+
+        # Exchange authorization code for tokens from Google
+        try:
+            # Build redirect URI from the request (must match what was sent to Google)
+            callback_url = cherrypy.url('/auth/callback', base=cherrypy.request.base, relative=False)
+
+            token_url = "https://oauth2.googleapis.com/token"
+            token_data = {
+                'code': code,
+                'client_id': self.google_client_id,
+                'client_secret': self.google_client_secret,
+                'redirect_uri': callback_url,
+                'grant_type': 'authorization_code'
             }
 
-            # Substitute values into template
-            html_output = self.login_html_template
-            for var_name, value in substitutions.items():
-                html_output = html_output.replace(var_name, value)
-            return html_output
-        else:
-            # POST: Process login
-            if not username or not password:
-                raise cherrypy.HTTPError(
-                    400, "Username and password required"
-                )
-
-            if not self.verify_password(username, password):
-                raise cherrypy.HTTPError(403, "Invalid credentials")
-
-            # Clean up expired auth codes before creating new one
-            self._cleanup_expired_auth_codes()
-
-            # Generate authorization code
-            auth_code = secrets.token_urlsafe(32)
-            self.auth_codes[auth_code] = {
-                'username': username,
-                'expires': time.time() + 600  # 10 minutes
-            }
-
-            # Redirect back to Google with auth code
-            redirect_url = (
-                f"{redirect_uri}?"
-                f"code={urllib.parse.quote(auth_code)}&"
-                f"state={urllib.parse.quote(state)}"
+            req = urllib.request.Request(
+                token_url,
+                data=urllib.parse.urlencode(token_data).encode(),
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
             )
-            raise cherrypy.HTTPRedirect(redirect_url)
+            with urllib.request.urlopen(req) as response:
+                tokens = json.loads(response.read().decode())
+
+            id_token = tokens.get('id_token')
+            if not id_token:
+                say("No id_token in Google response")
+                raise cherrypy.HTTPError(500, "Failed to get user identity from Google")
+
+            # Verify the ID token and extract email
+            email = self.verify_google_token(id_token)
+            if not email:
+                raise cherrypy.HTTPError(403, "User not authorized")
+
+            say(f"Successfully authenticated user: {email}")
+
+        except urllib.error.HTTPError as e:
+            say(f"Google token exchange failed: {e}")
+            raise cherrypy.HTTPError(500, "Failed to exchange code with Google")
+        except Exception as e:
+            say(f"Error in Google OAuth callback: {e}")
+            raise cherrypy.HTTPError(500, f"Authentication error: {e}")
+
+        # Clean up expired auth codes
+        self._cleanup_expired_auth_codes()
+
+        # Generate authorization code for Smart Home
+        auth_code = secrets.token_urlsafe(32)
+        self.auth_codes[auth_code] = {
+            'email': email,
+            'expires': time.time() + 600  # 10 minutes
+        }
+
+        # Redirect back to Google Smart Home with auth code
+        redirect_url = (
+            f"{auth_request['redirect_uri']}?"
+            f"code={urllib.parse.quote(auth_code)}&"
+            f"state={urllib.parse.quote(auth_request['state'])}"
+        )
+        say(f"Redirecting back to Google Smart Home: {redirect_url}")
+        raise cherrypy.HTTPRedirect(redirect_url)
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -366,12 +465,12 @@ class OAuthHandler:
             new_refresh_token = secrets.token_urlsafe(32)
 
             self.tokens[access_token] = {
-                'username': auth_data['username'],
+                'email': auth_data['email'],
                 'refresh_token': new_refresh_token,
                 'expires': time.time() + 3600  # 1 hour
             }
             self.refresh_tokens[new_refresh_token] = {
-                'username': auth_data['username'],
+                'email': auth_data['email'],
                 'access_token': access_token
             }
 
@@ -409,7 +508,7 @@ class OAuthHandler:
             access_token = secrets.token_urlsafe(32)
 
             self.tokens[access_token] = {
-                'username': refresh_data['username'],
+                'email': refresh_data['email'],
                 'refresh_token': refresh_token,
                 'expires': time.time() + 3600  # 1 hour
             }

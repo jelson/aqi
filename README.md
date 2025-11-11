@@ -145,8 +145,18 @@ openssl rand -hex 32
 Edit the configuration:
 - **oauth_client_id**: Can leave as default (`aqi-sensors`) or customize
 - **oauth_client_secret**: Paste the random secret from the `openssl rand -hex 32` command above
-- **username/password**: Set credentials for account linking
-- **room_mapping**: Map friendly names to your sensor names in the database
+- **google_oauth_client_id**: OAuth client ID from Google Cloud Console (see step 2a below)
+- **google_oauth_client_secret**: OAuth client secret from Google Cloud Console
+- **users**: Map Google email addresses to their sensor mappings. Each user should have a `room_mapping` dictionary that maps friendly names to sensor names in the database
+
+Example:
+```yaml
+users:
+  your-email@gmail.com:
+    room_mapping:
+      bedroom: your-sensor-bedroom
+      office: your-sensor-office
+```
 
 Test the database query (before starting the service):
 
@@ -170,9 +180,16 @@ a valid cert.
 
 **Apache** (add to your VirtualHost configuration):
 ```apache
-# Forward all /smarthome/* requests to the local service
-ProxyPass /smarthome http://127.0.0.1:15001
-ProxyPassReverse /smarthome http://127.0.0.1:15001
+<Location /smarthome>
+    # Forward all /smarthome/* requests to the local service
+    ProxyPass http://127.0.0.1:15001
+    ProxyPassReverse http://127.0.0.1:15001
+
+    # Required headers for reverse proxy support
+    RequestHeader set X-Forwarded-Proto "https"
+    RequestHeader set X-Forwarded-Host "%{HTTP_HOST}s"
+    RequestHeader set X-Forwarded-Prefix "/smarthome"
+</Location>
 ```
 
 **nginx**:
@@ -181,19 +198,53 @@ location /smarthome/ {
     proxy_pass http://127.0.0.1:15001/;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Prefix /smarthome;
 }
 ```
 
 Test that the endpoints are accessible via HTTPS:
 ```bash
-# Should return a 400 error (missing parameters), not a connection error
-curl -X GET https://your-domain.com/smarthome/auth
+# Should return a redirect to Google OAuth, not a connection error
+curl -X GET 'https://your-domain.com/smarthome/auth?client_id=aqi-sensors&redirect_uri=https://oauth-redirect.googleusercontent.com/r/YOUR_PROJECT_ID&state=test&response_type=code'
 
 # Should return a 400 error (missing POST data), not a connection error
-curl -X POST https://your-domain.com/smarthome/token
+curl -X POST https://your-domain.com/smarthome/auth/token
 ```
 
-#### 2. Create a Smart Home Action in Google Home Developer Console
+#### 2. Create Google OAuth 2.0 Credentials
+
+The integration uses "Sign in with Google" for user authentication. You need to create OAuth 2.0 credentials:
+
+1. **Go to Google Cloud Console**
+   - Visit [console.cloud.google.com](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+
+2. **Enable the Google+ API** (required for OAuth)
+   - In the left sidebar, go to **APIs & Services** → **Library**
+   - Search for "Google+ API"
+   - Click on it and press **Enable**
+
+3. **Create OAuth 2.0 credentials**
+   - In the left sidebar, go to **APIs & Services** → **Credentials**
+   - Click **"Create Credentials"** → **"OAuth client ID"**
+   - If prompted, configure the OAuth consent screen first:
+     - User type: **External**
+     - App name: Your choice (e.g., "AQI Sensors")
+     - User support email: Your email
+     - Developer contact: Your email
+     - Click **"Save and Continue"** through the rest
+   - Application type: **Web application**
+   - Name: "AQI Smart Home Integration"
+   - **Authorized redirect URIs**: Add `https://your-domain.com/smarthome/auth/callback`
+   - Click **"Create"**
+
+4. **Copy credentials to config file**
+   - Copy the **Client ID** to `google_oauth_client_id` in your config
+   - Copy the **Client secret** to `google_oauth_client_secret` in your config
+
+#### 3. Create a Smart Home Action in Google Home Developer Console
 
 1. **Go to the Google Home Developer Console**
    - Visit [console.home.google.com](https://console.home.google.com/)
@@ -226,7 +277,7 @@ curl -X POST https://your-domain.com/smarthome/token
    - **Client secret**: Enter the value you generated with
      `openssl rand -hex 32`
    - **Authorization URL**: `https://your-domain.com/smarthome/auth`
-   - **Token URL**: `https://your-domain.com/smarthome/token`
+   - **Token URL**: `https://your-domain.com/smarthome/auth/token`
    - **Scopes**: Leave empty or add any dummy scope (not used by this
      integration)
    - Click **"Next"**
@@ -241,19 +292,21 @@ curl -X POST https://your-domain.com/smarthome/token
    - Your integration is now available for testing on devices linked to
      your Google account
 
-#### 3. Link Your Account in Google Home App
+#### 4. Link Your Account in Google Home App
 
 1. Open the Google Home app on your phone
 2. Tap "+" (Add) → "Set up device" → "Works with Google"
 3. Search for your project name (e.g., "AQI Sensors")
-4. Tap it and sign in with the username/password from your config file
-5. Google will discover your sensors
+4. Tap it and you'll be redirected to Google Sign-In
+5. Sign in with a Google account that's listed in your config file's `users` section
+6. Grant permission to the integration
+7. Google will discover your sensors
 
 You should now see sensors like "Bedroom Air Quality" and "Office Air
 Quality" in the account linking confirmation (though they won't appear in
 the main Google Home interface - this is normal for sensors).
 
-#### 4. Try Voice Queries
+#### 5. Try Voice Queries
 
 Say to any Google Home device or Google Assistant:
 - **"Hey Google, what's the bedroom air quality?"**
@@ -294,14 +347,16 @@ This error occurs when the OAuth token exchange fails. To diagnose:
 
    # Test the token endpoint (should return JSON with
    # "invalid_client" error)
-   curl -X POST https://your-domain.com/smarthome/token \
+   curl -X POST https://your-domain.com/smarthome/auth/token \
      -H "Content-Type: application/x-www-form-urlencoded" \
      -d "client_id=test&client_secret=test&grant_type=authorization_code&code=test"
    ```
 
 4. Common causes:
    - **Reverse proxy misconfiguration**: Verify Apache/nginx is
-     forwarding `/smarthome/*` to `http://127.0.0.1:15001/`
+     forwarding `/smarthome/*` to `http://127.0.0.1:15001/` and sending
+     the required headers (`X-Forwarded-Proto`, `X-Forwarded-Host`,
+     `X-Forwarded-Prefix`)
    - **OAuth credentials mismatch**: Ensure `oauth_client_id` and
      `oauth_client_secret` in your config file exactly match what you
      entered in the Google Home Developer Console
@@ -316,4 +371,3 @@ This error occurs when the OAuth token exchange fails. To diagnose:
   `journalctl -u google-home-smarthome.service -f`
 - Verify room_mapping in config file matches your sensor names in the
   database
-
