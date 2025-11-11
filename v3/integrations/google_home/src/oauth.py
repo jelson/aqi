@@ -231,8 +231,8 @@ class OAuthHandler:
         return value[0] if isinstance(value, list) and value else value
 
     @cherrypy.expose
-    def auth(self, client_id=None, redirect_uri=None, state=None,
-             response_type=None):
+    def index(self, client_id=None, redirect_uri=None, state=None,
+              response_type=None):
         """
         OAuth authorization endpoint - redirects to Google Sign-In.
 
@@ -252,7 +252,7 @@ class OAuthHandler:
         response_type = self._extract_param(response_type)
 
         # Debug logging
-        say(f"auth() called: client_id={client_id}, "
+        say(f"index() called: client_id={client_id}, "
             f"redirect_uri={redirect_uri}, state={state}, "
             f"response_type={response_type}")
 

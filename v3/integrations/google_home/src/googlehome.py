@@ -44,7 +44,8 @@ class GoogleSmartHomeIntegration:
             raise ValueError("users must be a dictionary")
 
         # Initialize OAuth handler with user authorization callback
-        self.oauth = OAuthHandler(config, self.is_user_authorized)
+        # Expose as nested object - CherryPy routes /auth/* to this object
+        self.auth = OAuthHandler(config, self.is_user_authorized)
 
     def is_user_authorized(self, email):
         """
@@ -59,24 +60,12 @@ class GoogleSmartHomeIntegration:
         return email in self.users
 
     # ========================================================================
-    # OAuth Endpoints (delegated to OAuth handler)
+    # OAuth Endpoints
     # ========================================================================
-
-    @cherrypy.expose
-    def auth(self, **kwargs):
-        """OAuth authorization endpoint (delegated to OAuth handler)."""
-        return self.oauth.auth(**kwargs)
-
-    @cherrypy.expose
-    def callback(self, **kwargs):
-        """Google OAuth callback endpoint (delegated to OAuth handler)."""
-        return self.oauth.callback(**kwargs)
-
-    @cherrypy.expose
-    @cherrypy.tools.json_out()
-    def token(self, **kwargs):
-        """OAuth token endpoint (delegated to OAuth handler)."""
-        return self.oauth.token(**kwargs)
+    # OAuth handler is exposed as self.auth, so CherryPy automatically routes:
+    #   /auth          -> self.auth.auth() (index method)
+    #   /auth/callback -> self.auth.callback()
+    #   /auth/token    -> self.auth.token()
 
     # ========================================================================
     # Sensor Data Access
@@ -127,7 +116,7 @@ class GoogleSmartHomeIntegration:
             return {"error": "Missing authorization"}
 
         access_token = auth_header[7:]  # Remove 'Bearer ' prefix
-        email = self.oauth.verify_access_token(access_token)
+        email = self.auth.verify_access_token(access_token)
 
         if not email:
             cherrypy.response.status = 401
