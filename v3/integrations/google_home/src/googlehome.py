@@ -24,9 +24,9 @@ import sys
 
 # project libraries
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-from common.mylogging import say
-from server.pms5003db import PMS5003Database
-from integrations.google_home.src.oauth import OAuthHandler
+from common.mylogging import say  # noqa: E402
+from server.pms5003db import PMS5003Database  # noqa: E402
+from integrations.google_home.src.oauth import OAuthHandler  # noqa: E402
 
 
 class GoogleSmartHomeIntegration:

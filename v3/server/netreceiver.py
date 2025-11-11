@@ -15,7 +15,9 @@ import yaml
 # project libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.mylogging import say
+from common import mylogging
 import pms5003db
+
 
 class SensorDataHandler():
     def __init__(self, config):
@@ -60,7 +62,7 @@ class SensorDataHandler():
         body = cherrypy.request.body.read()
         try:
             msg = json.loads(body)
-        except Exception as e:
+        except Exception:
             say(f"{debugstr}: got invalid json document: {body}")
             cherrypy.response.status = 400
             return
@@ -79,7 +81,7 @@ class SensorDataHandler():
         # check password -- clowny method
         elif 'clowny-cleartext-password' in msg:
             if msg['clowny-cleartext-password'] != self.config['password']:
-                say(f"password mismatch")
+                say("password mismatch")
                 cherrypy.response.status = 403
                 return
 
@@ -110,7 +112,6 @@ class SensorDataHandler():
             ])
 
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -126,7 +127,7 @@ def main():
     )
     args = parser.parse_args()
     if args.log:
-        logging.open_logfile(args.log)
+        mylogging.open_logfile(args.log)
     config = yaml.safe_load(open(args.config_file))
     cherrypy.config.update({
         'server.socket_host': '::',
@@ -148,5 +149,6 @@ def main():
         })
 
     cherrypy.quickstart(SensorDataHandler(config))
+
 
 main()

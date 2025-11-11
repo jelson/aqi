@@ -12,10 +12,7 @@ import cherrypy
 import json
 import os
 import secrets
-import hashlib
-import hmac
 import time
-import html
 import urllib.parse
 import urllib.request
 
@@ -348,7 +345,8 @@ class OAuthHandler:
         # Exchange authorization code for tokens from Google
         try:
             # Build redirect URI from the request (must match what was sent to Google)
-            callback_url = cherrypy.url('/auth/callback', base=cherrypy.request.base, relative=False)
+            callback_url = cherrypy.url('/auth/callback', base=cherrypy.request.base,
+                                        relative=False)
 
             token_url = "https://oauth2.googleapis.com/token"
             token_data = {

@@ -2,14 +2,14 @@
 
 # To trigger, send a dbus message thusly:
 #
-# dbus-send --system --type=signal /org/lectrobox/aqi org.lectrobox.aqi.NewDataAvailable  dict:string:string:sensorname,jer-bedroom
+# dbus-send --system --type=signal /org/lectrobox/aqi
+# org.lectrobox.aqi.NewDataAvailable dict:string:string:sensorname,jer-bedroom
 #
 
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 import dbus
 import os
-import psycopg2
 import sys
 
 # project libraries
@@ -45,6 +45,7 @@ CONFIG = [
         'onoff-func': tplink_controller.TPLinkController('Gracie Fan').set_plug_state,
     },
 ]
+
 
 class AQIChangeHandler:
     def __init__(self, bus):
@@ -98,24 +99,26 @@ class AQIChangeHandler:
             where
                sensorid=%s and
                datatype=%s and
-                time > now() - interval '%s seconds'""", (
-                    self.pmsdb.get_sensorid_by_name(c['sensorname']),
-                    self.pmsdb.get_datatype_by_name(c['datatype']),
-                    c['averaging-sec'])
+               time > now() - interval '%s seconds'""", (
+                self.pmsdb.get_sensorid_by_name(c['sensorname']),
+                self.pmsdb.get_datatype_by_name(c['datatype']),
+                c['averaging-sec'])
         )
         row = cursor.fetchone()
         db.rollback()
-        return(row[0])
+        return row[0]
 
     def change_fan_state(self, c, onoff):
         c['fan-is-on'] = onoff
         c['onoff-func'](onoff)
 
+
 def main():
     DBusGMainLoop(set_as_default=True)
     bus = dbus.SystemBus()
-    ch = AQIChangeHandler(bus)
+    ch = AQIChangeHandler(bus)  # noqa: F841
     loop = GLib.MainLoop()
     loop.run()
+
 
 main()

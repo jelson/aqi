@@ -29,9 +29,10 @@ import sys
 
 # project libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-import common.mylogging
-from common.mylogging import say
-import httpclient
+import common.mylogging  # noqa: E402
+from common.mylogging import say  # noqa: E402
+import httpclient  # noqa: E402
+
 
 def read_forever(infile, cache):
     say("Starting to read from sensor")
@@ -50,6 +51,7 @@ def read_forever(infile, cache):
 
         # append to cache
         cache.append(data)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -84,5 +86,6 @@ def main():
 
     # should hopefully never be reached
     say("Read failed! Exiting!")
+
 
 main()

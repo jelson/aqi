@@ -6,6 +6,7 @@ import pathlib
 import requests
 import yaml
 
+
 class NestController():
     def __init__(self, device_name):
         config_fn = os.path.join(
@@ -13,8 +14,8 @@ class NestController():
             ".config", "aqi", "nest-client.yml")
         config = yaml.safe_load(open(config_fn, "r"))
         self.config = config['client_config']
-        if not device_name in config['devices']:
-            raise(f"No such device '{device_name}' in config file '{config_fn}'")
+        if device_name not in config['devices']:
+            raise Exception(f"No such device '{device_name}' in config file '{config_fn}'")
         self.config.update(config['devices'][device_name])
 
     def _execute_request(self, url, json_body=None):
@@ -41,23 +42,27 @@ class NestController():
             resp = requests.get(url, headers=headers)
 
         json_response = resp.json()
-        print(f"Got response, status {resp.status_code}: {json.dumps(json_response, indent=True)}")
+        print(f"Got response, status {resp.status_code}: "
+              f"{json.dumps(json_response, indent=True)}")
         return json_response
 
     def list_all_devices(self):
-        return self._execute_request("{control_url}/enterprises/{project}/devices".format(**self.config))
+        return self._execute_request(
+            "{control_url}/enterprises/{project}/devices".format(**self.config))
 
     def get_status(self):
-        return self._execute_request("{control_url}/enterprises/{project}/devices/{device}".format(**self.config))
+        return self._execute_request(
+            "{control_url}/enterprises/{project}/devices/{device}".format(**self.config))
 
     def _command_url(self):
-        return "{control_url}/enterprises/{project}/devices/{device}:executeCommand".format(**self.config)
+        return ("{control_url}/enterprises/{project}/devices/{device}:executeCommand"
+                .format(**self.config))
 
     def fan_control(self, onoff):
         if onoff:
             params = {
                 "timerMode": "ON",
-                "duration": "5400s", # 90 minutes
+                "duration": "5400s",  # 90 minutes
 
             }
         else:
@@ -65,10 +70,11 @@ class NestController():
                 "timerMode": "OFF",
             }
 
-        self._execute_request(self._command_url(), json_body = {
+        self._execute_request(self._command_url(), json_body={
             "command": "sdm.devices.commands.Fan.SetTimer",
             "params": params
         })
+
 
 def main():
     controller = NestController('Jer Entryway')
@@ -77,6 +83,7 @@ def main():
 
     controller = NestController('Jer Bedroom')
     controller.get_status()
+
 
 if __name__ == '__main__':
     main()

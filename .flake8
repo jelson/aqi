@@ -1,0 +1,4 @@
+[flake8]
+max-line-length = 100
+# Ignore E402 (module level import not at top) - common pattern for sys.path manipulation
+ignore = E402

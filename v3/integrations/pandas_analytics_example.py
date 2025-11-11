@@ -9,6 +9,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import server.pms5003db as pms5003db
 
+
 def read_as_dataframe(db, sensorname, datatype, time_start=None, time_end=None):
     sensor_id = db.get_sensorid_by_name(sensorname)
     datatype_id = db.get_datatype_by_name(datatype)
@@ -17,7 +18,7 @@ def read_as_dataframe(db, sensorname, datatype, time_start=None, time_end=None):
         raise Exception("sensor or datatype not found")
 
     stmt = """
-         select 
+         select
             time, value
          from
             sensordatav4_tsdb
@@ -38,6 +39,7 @@ def read_as_dataframe(db, sensorname, datatype, time_start=None, time_end=None):
 
     conn = db.get_raw_db()
     return pd.read_sql(stmt, conn, params=values)
+
 
 db = pms5003db.PMS5003Database()
 df = read_as_dataframe(

@@ -16,6 +16,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from common.mylogging import say
 
+
 # Convert PM2.5 to AQI. It seems that AQI is not defined above PM2.5
 # of 500 so we just add to it linearly after that.
 def convert_aqi(pm):
@@ -154,7 +155,8 @@ class PMS5003Database:
         cursor = db.cursor()
         psycopg2.extras.execute_values(
             cursor,
-            "insert into sensordatav4_tsdb (time, sensorid, datatype, value, received_at) values %s",
+            "insert into sensordatav4_tsdb (time, sensorid, datatype, value, received_at) "
+            "values %s",
             insertion_list,
             template="(%(time)s, %(sensorid)s, %(datatype)s, %(value)s, now())",
         )
@@ -165,7 +167,7 @@ class PMS5003Database:
         latest = {}
         for insertion in insertion_list:
             datatype = insertion['datatype']
-            if not datatype in latest or latest[datatype]['time'] < insertion['time']:
+            if datatype not in latest or latest[datatype]['time'] < insertion['time']:
                 latest[datatype] = insertion
         psycopg2.extras.execute_values(
             cursor,

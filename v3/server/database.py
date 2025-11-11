@@ -13,6 +13,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.mylogging import say
 
+
 class DatabaseBatcher:
     def __init__(self, dbname, tablename, column_list):
         self.column_list = column_list
@@ -38,7 +39,7 @@ class DatabaseBatcher:
                 values,
                 template=None,
             )
-            #say(f"{len(recordlist)} records committed")
+            # say(f"{len(recordlist)} records committed")
         except Exception as e:
             say(f"could not commit records: {str(e)}")
         finally:

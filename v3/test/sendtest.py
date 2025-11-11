@@ -21,13 +21,14 @@ def test(client, args):
         records.append({
             'time': t,
             'pm1.0': i,
-            'pm2.5': 100+i,
-            'pm10.0': 1000+i,
+            'pm2.5': 100 + i,
+            'pm10.0': 1000 + i,
         })
         t = t + datetime.timedelta(seconds=0.1)
 
     retval = client.insert_batch(records)
     print(f"Retval: {retval}")
+
 
 def main():
     parser = argparse.ArgumentParser(sys.argv[0])
@@ -50,5 +51,6 @@ def main():
     client = httpclient.DataClient(args)
     for i in range(args.requests):
         test(client, args)
+
 
 main()

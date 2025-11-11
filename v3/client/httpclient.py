@@ -1,6 +1,5 @@
 # HTTP client that takes sensor data and POSTs it to a waiting listener
 
-import binascii
 import datetime
 import hashlib
 import os
@@ -12,6 +11,7 @@ import sys
 # project libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.mylogging import say
+
 
 # Build an argparse parser for standard arguments for clients: sensor id, url and password
 def build_parser(parser):
@@ -39,6 +39,7 @@ def build_parser(parser):
         action='store_true',
         default=False,
     )
+
 
 class DataClient:
     def __init__(self, args):

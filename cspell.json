@@ -1,0 +1,45 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "allowCompoundWords": true,
+  "words": [
+    "cherrypy",
+    "dbus",
+    "lectrobox",
+    "onoff",
+    "pmsdb",
+    "perc",
+    "pycache",
+    "sensorid",
+    "tplink"
+  ],
+  "ignoreRegExpList": [
+    "/\\w*\\d+\\w*/g",
+    "/0x[0-9a-fA-F]+/g",
+    "/\\b[A-Z_]+\\b/g"
+  ],
+  "ignorePaths": [
+    "node_modules",
+    "*.log",
+    "*.pyc",
+    "__pycache__",
+    ".git",
+    "*.min.js",
+    "*.map"
+  ],
+  "languageSettings": [
+    {
+      "languageId": "python",
+      "allowCompoundWords": true,
+      "patterns": [
+        {
+          "name": "imports",
+          "pattern": "/(from|import)\\s+[\\w\\.]+/g"
+        }
+      ],
+      "ignoreRegExpList": [
+        "imports"
+      ]
+    }
+  ]
+}

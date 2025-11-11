@@ -8,8 +8,9 @@ import time
 
 # project libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from common.mylogging import say
-import httpclient
+from common.mylogging import say  # noqa: E402
+import httpclient  # noqa: E402
+
 
 class DataCache(threading.Thread):
     def __init__(self, args):
