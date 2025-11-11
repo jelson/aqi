@@ -63,14 +63,13 @@ class GoogleSmartHomeIntegration:
     # Sensor Data Access
     # ========================================================================
 
-    # Mapping from database datatype names to Google Home sensor names
+    # Mapping from database datatype names to Google Home SensorState info
     # Note: Google only supports PM2.5 and PM10, not PM1
+    # Temperature and humidity are handled separately (see handle_sync/handle_query)
     DATATYPE_TO_GOOGLE = {
-        'aqi2.5': 'AirQuality',
-        'pm2.5': 'PM2.5',
-        'pm10.0': 'PM10',
-        'temperature': 'AmbientTemperature',
-        'humidity': 'AmbientHumidity'
+        'aqi2.5': ('AirQuality', 'AQI'),
+        'pm2.5': ('PM2.5', 'MICROGRAMS_PER_CUBIC_METER'),
+        'pm10.0': ('PM10', 'MICROGRAMS_PER_CUBIC_METER'),
     }
 
     @staticmethod
@@ -180,15 +179,6 @@ class GoogleSmartHomeIntegration:
 
         devices = []
 
-        # Define units for each Google sensor type
-        GOOGLE_UNITS = {
-            'AirQuality': 'AQI',
-            'PM2.5': 'MICROGRAMS_PER_CUBIC_METER',
-            'PM10': 'MICROGRAMS_PER_CUBIC_METER',
-            'AmbientTemperature': 'CELSIUS',
-            'AmbientHumidity': 'PERCENT'
-        }
-
         for friendly_name, sensor_name in room_mapping.items():
             device_id = self.sensor_to_device_id(sensor_name)
 
@@ -196,31 +186,56 @@ class GoogleSmartHomeIntegration:
             available_datatypes = self.pmsdb.get_datatypes_for_sensor(sensor_name)
             say(f"Available datatypes for {sensor_name}: {available_datatypes}")
 
-            # Build list of supported sensor states
+            # Build list of supported sensor states and check for special traits
             sensor_states_supported = []
-            for datatype_name in available_datatypes:
-                if datatype_name in self.DATATYPE_TO_GOOGLE:
-                    google_datatype = self.DATATYPE_TO_GOOGLE[datatype_name]
-                    unit = GOOGLE_UNITS.get(google_datatype, 'UNKNOWN')
+            has_temperature = False
+            has_humidity = False
 
+            for datatype_name in available_datatypes:
+                if datatype_name == 'temperature_C':
+                    has_temperature = True
+                elif datatype_name == 'humidity':
+                    has_humidity = True
+                elif datatype_name in self.DATATYPE_TO_GOOGLE:
+                    # SensorState trait
+                    google_sensor_name, unit = self.DATATYPE_TO_GOOGLE[datatype_name]
                     sensor_states_supported.append({
-                        "name": google_datatype,
+                        "name": google_sensor_name,
                         "numericCapabilities": {
                             "rawValueUnit": unit
                         }
                     })
 
             # Skip sensor if no supported data types
-            if not sensor_states_supported:
+            if not sensor_states_supported and not has_temperature and not has_humidity:
                 say(f"Skipping {sensor_name} - no supported data types")
                 continue
+
+            # Build traits list
+            traits = []
+            attributes = {}
+
+            if sensor_states_supported:
+                traits.append("action.devices.traits.SensorState")
+                attributes["sensorStatesSupported"] = sensor_states_supported
+
+            if has_temperature:
+                traits.append("action.devices.traits.TemperatureControl")
+                attributes["queryOnlyTemperatureControl"] = True
+                attributes["temperatureRange"] = {
+                    "minThresholdCelsius": -40,
+                    "maxThresholdCelsius": 100
+                }
+                attributes["temperatureUnitForUX"] = "C"
+
+            if has_humidity:
+                traits.append("action.devices.traits.HumiditySetting")
+                attributes["queryOnlyHumiditySetting"] = True
 
             devices.append({
                 "id": device_id,
                 "type": "action.devices.types.SENSOR",
-                "traits": [
-                    "action.devices.traits.SensorState"
-                ],
+                "traits": traits,
                 "name": {
                     "defaultNames": ["AQI Sensor"],
                     "name": f"{friendly_name.title()} Air Quality",
@@ -238,9 +253,7 @@ class GoogleSmartHomeIntegration:
                     "hwVersion": "1.0",
                     "swVersion": "1.0"
                 },
-                "attributes": {
-                    "sensorStatesSupported": sensor_states_supported
-                }
+                "attributes": attributes
             })
 
         response = {
@@ -286,37 +299,55 @@ class GoogleSmartHomeIntegration:
             latest_values = self.pmsdb.get_latest_values_for_sensor(sensor_name)
             say(f"Latest values for {sensor_name}: {latest_values}")
 
-            # Build sensor states for supported datatypes
+            # Build sensor states and check for special traits
             sensor_states = []
+            temperature_celsius = None
+            humidity_percent = None
+
             for datatype_name, value in latest_values.items():
-                # Check if we have a mapping for this datatype
-                if datatype_name not in self.DATATYPE_TO_GOOGLE:
-                    continue
-
-                google_datatype = self.DATATYPE_TO_GOOGLE[datatype_name]
-
                 # Round if it's a numeric type
                 if isinstance(value, (int, float)):
                     value = round(value)
 
-                sensor_states.append({
-                    "name": google_datatype,
-                    "rawValue": value
-                })
+                # Temperature and humidity use separate traits
+                if datatype_name == 'temperature_C':
+                    temperature_celsius = value
+                elif datatype_name == 'humidity':
+                    humidity_percent = value
+                elif datatype_name in self.DATATYPE_TO_GOOGLE:
+                    # SensorState trait
+                    google_sensor_name, _ = self.DATATYPE_TO_GOOGLE[datatype_name]
+                    sensor_states.append({
+                        "name": google_sensor_name,
+                        "rawValue": value
+                    })
 
-            if not sensor_states:
+            if not sensor_states and temperature_celsius is None and humidity_percent is None:
                 # Sensor offline or no recent data
                 device_states[device_id] = {
                     "online": False,
                     "status": "OFFLINE"
                 }
             else:
-                # Return sensor state
-                device_states[device_id] = {
+                # Build device state
+                device_state = {
                     "online": True,
-                    "status": "SUCCESS",
-                    "currentSensorStateData": sensor_states
+                    "status": "SUCCESS"
                 }
+
+                # Add SensorState data if present
+                if sensor_states:
+                    device_state["currentSensorStateData"] = sensor_states
+
+                # Add TemperatureControl data if present
+                if temperature_celsius is not None:
+                    device_state["temperatureAmbientCelsius"] = temperature_celsius
+
+                # Add HumiditySetting data if present
+                if humidity_percent is not None:
+                    device_state["humidityAmbientPercent"] = humidity_percent
+
+                device_states[device_id] = device_state
 
         response = {
             "requestId": request_id,
