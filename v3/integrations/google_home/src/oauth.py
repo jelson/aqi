@@ -304,7 +304,7 @@ class OAuthHandler:
         raise cherrypy.HTTPRedirect(google_auth_url)
 
     @cherrypy.expose
-    def callback(self, code=None, state=None, error=None):
+    def callback(self, code=None, state=None, error=None, **kwargs):
         """
         Google OAuth callback endpoint.
 
@@ -312,12 +312,14 @@ class OAuthHandler:
             code: Authorization code from Google
             state: State parameter linking back to Smart Home auth request
             error: Error from Google (if auth failed)
+            **kwargs: Additional parameters from Google (scope, authuser, prompt, etc.)
 
         Returns:
             Redirect back to Google Smart Home with auth code
         """
         say(f"callback() called: code={code[:20] if code else None}..., "
-            f"state={state[:20] if state else None}..., error={error}")
+            f"state={state[:20] if state else None}..., error={error}, "
+            f"extra params: {list(kwargs.keys())}")
 
         # Handle error from Google
         if error:
