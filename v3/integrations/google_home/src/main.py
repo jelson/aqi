@@ -69,8 +69,9 @@ def main():
             }
         }
 
-        # Call the real QUERY handler
-        response = googlehome.handle_query('test-request-id', query_input)
+        # Call the real QUERY handler (use first user's email for testing)
+        test_email = list(config.get('users', {}).keys())[0] if config.get('users') else 'test@example.com'
+        response = googlehome.handle_query('test-request-id', query_input, test_email)
 
         # Display the result
         import json
