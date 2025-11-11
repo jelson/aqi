@@ -356,7 +356,8 @@ class GoogleSmartHomeIntegration:
             }
         }
 
-        say(f"QUERY response: {len(device_states)} devices")
+        say(f"QUERY response ({len(device_states)} devices):\n"
+            f"{json.dumps(response, indent=2)}")
         return response
 
     def handle_execute(self, request_id, input_data):
