@@ -200,16 +200,15 @@ class OAuthHandler:
     def _cleanup_expired_tokens(self):
         """Remove expired access tokens."""
         now = time.time()
+
+        # Clean up expired access tokens
         expired = [
             token for token, data in self.tokens.items()
             if data['expires'] < now
         ]
         for token in expired:
-            # Also remove the corresponding refresh token mapping
-            refresh_token = self.tokens[token].get('refresh_token')
-            if refresh_token and refresh_token in self.refresh_tokens:
-                del self.refresh_tokens[refresh_token]
             del self.tokens[token]
+
         if expired:
             say(f"Cleaned up {len(expired)} expired access tokens")
             # Persist changes to disk
@@ -472,6 +471,7 @@ class OAuthHandler:
             self.refresh_tokens[new_refresh_token] = {
                 'email': auth_data['email'],
                 'access_token': access_token
+                # No expiry - refresh tokens never expire
             }
 
             # Clean up auth code
