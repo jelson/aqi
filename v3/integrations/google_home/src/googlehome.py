@@ -194,7 +194,7 @@ class GoogleSmartHomeIntegration:
             for datatype_name in available_datatypes:
                 if datatype_name == 'temperature_C':
                     has_temperature = True
-                elif datatype_name == 'humidity':
+                elif datatype_name == 'humidity_perc':
                     has_humidity = True
                 elif datatype_name in self.DATATYPE_TO_GOOGLE:
                     # SensorState trait
@@ -312,7 +312,7 @@ class GoogleSmartHomeIntegration:
                 # Temperature and humidity use separate traits
                 if datatype_name == 'temperature_C':
                     temperature_celsius = value
-                elif datatype_name == 'humidity':
+                elif datatype_name == 'humidity_perc':
                     humidity_percent = value
                 elif datatype_name in self.DATATYPE_TO_GOOGLE:
                     # SensorState trait
