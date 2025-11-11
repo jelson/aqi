@@ -95,6 +95,9 @@ def main():
         'log.error_file': '',
         'request.show_tracebacks': True,
         'request.show_mismatched_params': True,
+        # Trust X-Forwarded-Proto and X-Forwarded-Host headers from reverse proxy
+        'tools.proxy.on': True,
+        'tools.proxy.base': '',  # Will be constructed from headers
     })
 
     say("Starting Google Smart Home integration service...")
