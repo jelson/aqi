@@ -13,7 +13,7 @@ import os
 import sys
 
 # project libraries
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 import server.pms5003db as pms5003db
 from common.mylogging import say
 import nest_controller

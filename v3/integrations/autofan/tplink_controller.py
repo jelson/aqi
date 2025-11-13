@@ -8,7 +8,7 @@ import sys
 import yaml
 
 # project libraries
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 from common.mylogging import say
 
 

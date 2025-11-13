@@ -1,0 +1,16 @@
+[Unit]
+Description=AQI autofan
+StartLimitIntervalSec=0
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Restart=always
+RestartSec=30
+Environment="DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket"
+ExecStart=/home/jelson/miniforge3/envs/aqi/bin/python3 /home/jelson/projects/aqi/v3/integrations/autofan/autofan.py
+User=jelson
+
+[Install]
+WantedBy=multi-user.target
+Alias=aqi-integrations.service
