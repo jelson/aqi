@@ -1,11 +1,13 @@
 [Unit]
 Description=AQI data receiver
 StartLimitIntervalSec=0
+Wants=network-online.target
+After=network-online.target postgresql.service
 
 [Service]
 Restart=always
 RestartSec=30
-ExecStart=/home/jelson/aqi/v3/server/netreceiver.py --config /home/jelson/aqi/receiver-config.json
+ExecStart=/home/jelson/miniforge3/envs/aqi/bin/python3 /home/jelson/projects/aqi/v3/server/netreceiver.py --config /home/jelson/.config/aqi/receiver-config.yml
 User=jelson
 
 [Install]

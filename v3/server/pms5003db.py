@@ -37,6 +37,7 @@ def convert_aqi(pm):
 
 class PMS5003Database:
     DBNAME = "airquality"
+    HOST = "/var/run/postgresql"
 
     def __init__(self):
         self._db = None
@@ -61,7 +62,10 @@ class PMS5003Database:
             try:
                 if not self._db:
                     say(f"Opening connection to database {self.DBNAME}")
-                    self._db = psycopg2.connect(database=self.DBNAME)
+                    self._db = psycopg2.connect(
+                        database=self.DBNAME,
+                        host=self.HOST,
+                    )
                 self._db.rollback()
                 return self._db
             except psycopg2.InterfaceError as e:
