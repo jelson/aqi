@@ -67,7 +67,7 @@ class PMS5003Database:
         # by the InterfaceError handler when the next real query fires.
         for i in range(2):
             try:
-                if not getattr(self._local, 'db', None):
+                if not getattr(self._local, 'db', None) or self._local.db.closed:
                     say(f"Opening connection to database {self.DBNAME}")
                     self._local.db = psycopg2.connect(
                         database=self.DBNAME,

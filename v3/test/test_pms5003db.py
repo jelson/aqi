@@ -30,6 +30,7 @@ TYPE_ROWS = [
 def _make_init_conn():
     """A mock psycopg2 connection pre-loaded for PMS5003Database.__init__ queries."""
     conn = MagicMock()
+    conn.closed = 0  # psycopg2 uses 0 for open connections
     cursor = MagicMock()
     conn.cursor.return_value = cursor
     cursor.fetchall.side_effect = [list(SENSOR_ROWS), list(TYPE_ROWS)]
