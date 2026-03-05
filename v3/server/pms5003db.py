@@ -57,8 +57,10 @@ class PMS5003Database:
         db.rollback()
 
     def get_raw_db(self):
-        # Each thread gets its own connection. Test it with a rollback;
-        # if it's broken, close and reopen.
+        # Each thread gets its own connection. Only rollback when the
+        # connection has an open transaction; skip the round-trip when
+        # it's already clean (STATUS_READY). Dead connections are caught
+        # by the InterfaceError handler when the next real query fires.
         for i in range(2):
             try:
                 if not getattr(self._local, 'db', None):
@@ -67,7 +69,8 @@ class PMS5003Database:
                         database=self.DBNAME,
                         host=self.HOST,
                     )
-                self._local.db.rollback()
+                if self._local.db.status != psycopg2.extensions.STATUS_READY:
+                    self._local.db.rollback()
                 return self._local.db
             except psycopg2.InterfaceError as e:
                 say(f"Exception using db; closing and reopening: {e}")
@@ -112,6 +115,7 @@ class PMS5003Database:
                 (sensorid,)
             )
             datatypes = [row[0] for row in cursor.fetchall()]
+            db.rollback()
             return datatypes
         except Exception as e:
             say(f"Error getting datatypes for {sensorname}: {e}")
@@ -149,6 +153,7 @@ class PMS5003Database:
                 (sensorid, max_age_sec)
             )
             values = {row[0]: row[1] for row in cursor.fetchall()}
+            db.rollback()
             return values
         except Exception as e:
             say(f"Error getting latest values for {sensorname}: {e}")

@@ -123,6 +123,22 @@ class TestGetRawDb:
         db, conn, _ = db_conn
         assert db.get_raw_db() is conn
 
+    def test_skips_rollback_when_status_ready(self, db_conn):
+        """No round-trip when connection is already clean."""
+        db, conn, _ = db_conn
+        conn.status = psycopg2.extensions.STATUS_READY
+        conn.rollback.reset_mock()
+        db.get_raw_db()
+        conn.rollback.assert_not_called()
+
+    def test_calls_rollback_when_not_status_ready(self, db_conn):
+        """Rollback is issued when a transaction is open."""
+        db, conn, _ = db_conn
+        conn.status = psycopg2.extensions.STATUS_IN_TRANSACTION
+        conn.rollback.reset_mock()
+        db.get_raw_db()
+        conn.rollback.assert_called_once()
+
     def test_new_thread_has_no_connection(self, db):
         """A new thread must not inherit the main thread's _local.db."""
         result = {}
