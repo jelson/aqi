@@ -6,6 +6,7 @@
 # from the raw PM2.5 value for each record.
 
 import aqi
+import functools
 import os
 import sys
 import psycopg2
@@ -20,6 +21,9 @@ from common.mylogging import say
 
 # Convert PM2.5 to AQI. It seems that AQI is not defined above PM2.5
 # of 500 so we just add to it linearly after that.
+# Cached: PMS5003 outputs integer µg/m³, and PM2.5 changes slowly, so
+# the same value recurs frequently across records in a batch.
+@functools.lru_cache(maxsize=512)
 def convert_aqi(pm):
     if pm > 500:
         aqi_input = 500
