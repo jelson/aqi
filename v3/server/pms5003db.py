@@ -10,6 +10,7 @@ import os
 import sys
 import psycopg2
 import psycopg2.extras
+import threading
 import time
 
 # project libraries
@@ -40,7 +41,7 @@ class PMS5003Database:
     HOST = "/var/run/postgresql"
 
     def __init__(self):
-        self._db = None
+        self._local = threading.local()
 
         db = self.get_raw_db()
         cursor = db.cursor()
@@ -56,21 +57,21 @@ class PMS5003Database:
         db.rollback()
 
     def get_raw_db(self):
-        # Test the database to see if it works by executing a
-        # rollback. If not, close and reopen.
+        # Each thread gets its own connection. Test it with a rollback;
+        # if it's broken, close and reopen.
         for i in range(2):
             try:
-                if not self._db:
+                if not getattr(self._local, 'db', None):
                     say(f"Opening connection to database {self.DBNAME}")
-                    self._db = psycopg2.connect(
+                    self._local.db = psycopg2.connect(
                         database=self.DBNAME,
                         host=self.HOST,
                     )
-                self._db.rollback()
-                return self._db
+                self._local.db.rollback()
+                return self._local.db
             except psycopg2.InterfaceError as e:
                 say(f"Exception using db; closing and reopening: {e}")
-                self._db = None
+                self._local.db = None
 
         say("Could not get working database - exiting")
         sys.exit(1)
