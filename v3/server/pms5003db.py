@@ -110,7 +110,7 @@ class PMS5003Database:
             cursor = db.cursor()
             cursor.execute(
                 """
-                SELECT DISTINCT t.name
+                SELECT t.name
                 FROM sensordatav4_latest l
                 JOIN sensordatav4_types t ON l.datatype = t.id
                 WHERE l.sensorid = %s
