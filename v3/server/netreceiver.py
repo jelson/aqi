@@ -4,10 +4,10 @@ import argparse
 import binascii
 import cherrypy
 import datetime
+import dbus
 import hashlib
 import json
 import os
-import subprocess
 import sys
 import tempfile
 import yaml
@@ -25,6 +25,7 @@ class SensorDataHandler():
         self.db = pms5003db.PMS5003Database()
         self.bin_password = config['password'].encode('utf-8')
         self.lookup_log = tempfile.NamedTemporaryFile(mode="w")
+        self.dbus_bus = dbus.SystemBus() if config.get('dbus-notify') else None
 
     @cherrypy.expose
     def recent_lookups(self):
@@ -101,15 +102,19 @@ class SensorDataHandler():
         self.db.insert_batch(sensorname, sensorid, sensordata, debugstr=debugstr)
 
         # Notify any integrations that new data is available
-        if self.config['dbus-notify']:
-            subprocess.run([
-                "dbus-send",
-                "--system",
-                "--type=signal",
-                "/org/lectrobox/aqi",
-                "org.lectrobox.aqi.NewDataAvailable",
-                f"dict:string:string:sensorname,{sensorname}"
-            ])
+        if self.dbus_bus is not None:
+            try:
+                msg = dbus.lowlevel.SignalMessage(
+                    '/org/lectrobox/aqi',
+                    'org.lectrobox.aqi',
+                    'NewDataAvailable',
+                )
+                msg.append(
+                    dbus.Dictionary({'sensorname': sensorname}, signature='ss')
+                )
+                self.dbus_bus.send_message(msg)
+            except Exception as e:
+                say(f"dbus notification failed: {e}")
 
 
 def main():
