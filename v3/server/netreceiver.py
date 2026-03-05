@@ -31,7 +31,8 @@ class SensorDataHandler():
 
     @cherrypy.expose
     def recent_lookups(self):
-        return open(self.lookup_log.name).read()
+        with open(self.lookup_log.name) as f:
+            return f.read()
 
     @cherrypy.expose
     def mac_lookup(self, macaddr):
