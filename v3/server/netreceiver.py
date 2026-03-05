@@ -156,4 +156,5 @@ def main():
     cherrypy.quickstart(SensorDataHandler(config))
 
 
-main()
+if __name__ == '__main__':
+    main()

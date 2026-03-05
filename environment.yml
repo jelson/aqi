@@ -1,0 +1,20 @@
+name: aqi
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.13
+  - psycopg2
+  - cherrypy
+  - pyyaml
+  - dbus-python
+  - pygobject
+  - requests
+  - pytest
+  - pandas
+  - pyserial
+  - uwsgi
+  - pip
+  - pip:
+    - python-aqi
+    - tplink-cloud-api
