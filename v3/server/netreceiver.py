@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import tempfile
+import threading
 import yaml
 
 # project libraries
@@ -26,6 +27,7 @@ class SensorDataHandler():
         self.bin_password = config['password'].encode('utf-8')
         self.lookup_log = tempfile.NamedTemporaryFile(mode="w")
         self.dbus_bus = dbus.SystemBus() if config.get('dbus-notify') else None
+        self.dbus_lock = threading.Lock()
 
     @cherrypy.expose
     def recent_lookups(self):
@@ -112,7 +114,8 @@ class SensorDataHandler():
                 msg.append(
                     dbus.Dictionary({'sensorname': sensorname}, signature='ss')
                 )
-                self.dbus_bus.send_message(msg)
+                with self.dbus_lock:
+                    self.dbus_bus.send_message(msg)
             except Exception as e:
                 say(f"dbus notification failed: {e}")
 

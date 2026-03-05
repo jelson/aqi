@@ -211,6 +211,37 @@ class TestDBusNotification:
         sent_msg = mock_bus.send_message.call_args[0][0]
         assert sent_msg is not None
 
+    def test_send_message_serialized_by_lock(self):
+        """Concurrent requests must not call send_message simultaneously."""
+        import threading as _threading
+        handler, mock_db, mock_bus = make_handler(dbus_notify=True)
+
+        call_order = []
+        lock_held_during_send = []
+
+        original_send = mock_bus.send_message.side_effect
+
+        def tracked_send(msg):
+            # Record whether the lock is held (it should be — we're inside 'with dbus_lock')
+            lock_held_during_send.append(not handler.dbus_lock.acquire(blocking=False))
+            if not lock_held_during_send[-1]:
+                handler.dbus_lock.release()  # clean up if we accidentally acquired it
+
+        mock_bus.send_message.side_effect = tracked_send
+
+        threads = [
+            _threading.Thread(target=call_data, args=(handler, make_hmac_payload()))
+            for _ in range(5)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert mock_bus.send_message.call_count == 5
+        # The lock must have been held every time send_message was called
+        assert all(lock_held_during_send)
+
 
 # ── MAC address lookup ────────────────────────────────────────────────────────
 
