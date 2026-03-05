@@ -9,6 +9,9 @@ Restart=always
 RestartSec=30
 ExecStart=/home/jelson/miniforge3/envs/aqi/bin/python3 /home/jelson/projects/aqi/v3/server/netreceiver.py --config /home/jelson/.config/aqi/receiver-config.yml
 User=jelson
+# conda's dbus package hardcodes its socket path to $CONDA_PREFIX/var/run/dbus/;
+# override to the real system bus socket.
+Environment=DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
 
 [Install]
 WantedBy=multi-user.target
