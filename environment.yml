@@ -13,7 +13,6 @@ dependencies:
   - pytest
   - pandas
   - pyserial
-  - uwsgi
   - pip
   - pip:
     - python-aqi
