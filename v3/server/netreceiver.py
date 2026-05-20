@@ -11,6 +11,7 @@ import os
 import sys
 import tempfile
 import threading
+import weakref
 import yaml
 
 # project libraries
@@ -26,6 +27,9 @@ class SensorDataHandler():
         self.db = pms5003db.PMS5003Database()
         self.bin_password = config['password'].encode('utf-8')
         self.lookup_log = tempfile.NamedTemporaryFile(mode="w")
+        # Close the tempfile when this handler is GC'd, before NamedTemporaryFile's
+        # own destructor runs -- otherwise Python 3.14 emits ResourceWarning.
+        weakref.finalize(self, self.lookup_log.close)
         self.dbus_bus = dbus.SystemBus() if config.get('dbus-notify') else None
         self.dbus_lock = threading.Lock()
 
