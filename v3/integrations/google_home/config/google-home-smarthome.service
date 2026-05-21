@@ -10,6 +10,7 @@ RestartSec=30
 Type=simple
 ExecStart=/home/jelson/miniforge3/envs/aqi/bin/python3 /home/jelson/projects/aqi/v3/integrations/google_home/src/main.py --config /home/jelson/.config/aqi/google-smarthome.yml
 User=jelson
+SyslogIdentifier=aqi-google-smarthome
 
 [Install]
 WantedBy=multi-user.target
