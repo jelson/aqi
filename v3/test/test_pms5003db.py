@@ -124,13 +124,13 @@ class TestGetRawDb:
         db, conn, _ = db_conn
         assert db.get_raw_db() is conn
 
-    def test_skips_rollback_when_status_ready(self, db_conn):
-        """No round-trip when connection is already clean."""
+    def test_rolls_back_even_when_status_ready(self, db_conn):
+        """Rollback is intentionally used as a connection health check."""
         db, conn, _ = db_conn
         conn.status = psycopg2.extensions.STATUS_READY
         conn.rollback.reset_mock()
         db.get_raw_db()
-        conn.rollback.assert_not_called()
+        conn.rollback.assert_called_once()
 
     def test_calls_rollback_when_not_status_ready(self, db_conn):
         """Rollback is issued when a transaction is open."""
@@ -191,6 +191,7 @@ class TestGetRawDb:
 
         assert result is new_conn
         assert db._local.db is new_conn
+        original_conn.close.assert_called_once()
 
     def test_exits_if_reconnect_also_fails(self, db_conn):
         """If both connection attempts fail, sys.exit(1) is called."""
@@ -201,6 +202,54 @@ class TestGetRawDb:
             with pytest.raises(SystemExit) as exc:
                 db.get_raw_db()
         assert exc.value.code == 1
+
+
+class TestLatestQueries:
+    def test_get_latest_values_returns_rows(self, db_conn):
+        db, conn, cursor = db_conn
+        cursor.fetchall.return_value = [('pm2.5', 7.0), ('aqi2.5', 29.0)]
+
+        assert db.get_latest_values_for_sensor('jer-office') == {
+            'pm2.5': 7.0,
+            'aqi2.5': 29.0,
+        }
+        conn.rollback.assert_called()
+
+    def test_get_latest_values_reconnects_before_query(self, db_conn):
+        db, old_conn, old_cursor = db_conn
+        old_cursor.execute.reset_mock()
+        old_conn.rollback.side_effect = psycopg2.InterfaceError("gone")
+
+        new_conn = MagicMock()
+        new_conn.closed = 0
+        new_cursor = MagicMock()
+        new_conn.cursor.return_value = new_cursor
+        new_cursor.fetchall.return_value = [('pm2.5', 8.0)]
+
+        with patch('psycopg2.connect', return_value=new_conn):
+            assert db.get_latest_values_for_sensor('jer-office') == {'pm2.5': 8.0}
+
+        old_conn.close.assert_called_once()
+        old_cursor.execute.assert_not_called()
+        new_cursor.execute.assert_called_once()
+
+    def test_get_datatypes_reconnects_before_query(self, db_conn):
+        db, old_conn, old_cursor = db_conn
+        old_cursor.execute.reset_mock()
+        old_conn.rollback.side_effect = psycopg2.InterfaceError("gone")
+
+        new_conn = MagicMock()
+        new_conn.closed = 0
+        new_cursor = MagicMock()
+        new_conn.cursor.return_value = new_cursor
+        new_cursor.fetchall.return_value = [('pm2.5',), ('aqi2.5',)]
+
+        with patch('psycopg2.connect', return_value=new_conn):
+            assert db.get_datatypes_for_sensor('jer-office') == ['pm2.5', 'aqi2.5']
+
+        old_conn.close.assert_called_once()
+        old_cursor.execute.assert_not_called()
+        new_cursor.execute.assert_called_once()
 
 
 # ── insert_batch ─────────────────────────────────────────────────────────────

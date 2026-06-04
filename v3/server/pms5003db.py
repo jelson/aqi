@@ -60,11 +60,22 @@ class PMS5003Database:
         say(f"data types: {self.datatypes}")
         db.rollback()
 
+    def _discard_thread_db(self):
+        db = getattr(self._local, 'db', None)
+        if db and not db.closed:
+            try:
+                db.close()
+            except psycopg2.Error as e:
+                say(f"Error closing broken db connection: {e}")
+        self._local.db = None
+
     def get_raw_db(self):
-        # Each thread gets its own connection. Only rollback when the
-        # connection has an open transaction; skip the round-trip when
-        # it's already clean (STATUS_READY). Dead connections are caught
-        # by the InterfaceError handler when the next real query fires.
+        # Each thread gets its own connection. Always test it with a
+        # rollback, even when psycopg2 says the connection is STATUS_READY:
+        # idle PostgreSQL sockets can be closed by the server while still
+        # looking locally ready. Do not "optimize" this away; the extra
+        # round trip is acceptable for this low-traffic service and keeps
+        # stale connection handling centralized for reads and writes alike.
         for i in range(2):
             try:
                 if not getattr(self._local, 'db', None) or self._local.db.closed:
@@ -73,12 +84,11 @@ class PMS5003Database:
                         database=self.DBNAME,
                         host=self.HOST,
                     )
-                if self._local.db.status != psycopg2.extensions.STATUS_READY:
-                    self._local.db.rollback()
+                self._local.db.rollback()
                 return self._local.db
-            except psycopg2.InterfaceError as e:
+            except (psycopg2.InterfaceError, psycopg2.OperationalError) as e:
                 say(f"Exception using db; closing and reopening: {e}")
-                self._local.db = None
+                self._discard_thread_db()
 
         say("Could not get working database - exiting")
         sys.exit(1)
@@ -123,7 +133,6 @@ class PMS5003Database:
             return datatypes
         except Exception as e:
             say(f"Error getting datatypes for {sensorname}: {e}")
-            db.rollback()
             return []
 
     def get_latest_values_for_sensor(self, sensorname, max_age_sec=60):
@@ -161,7 +170,6 @@ class PMS5003Database:
             return values
         except Exception as e:
             say(f"Error getting latest values for {sensorname}: {e}")
-            db.rollback()
             return {}
 
     def _insert_expanded(self, insertion_list):
